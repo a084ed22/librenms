@@ -1,4 +1,5 @@
 <?php
+
 /*
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -27,7 +28,6 @@ use LibreNMS\RRD\RrdDefinition;
 //
 //NET-SNMP-EXTEND-MIB::nsExtendOutputFull."ups-nut"
 $name = 'ups-nut';
-$app_id = $app['app_id'];
 $oid = '.1.3.6.1.4.1.8072.1.3.2.3.1.2.7.117.112.115.45.110.117.116';
 $ups_nut = snmp_get($device, $oid, '-Oqv');
 
@@ -39,8 +39,6 @@ if (! $ups_nut) {
     $ups_nut = snmp_walk($device, $oid, '-Oqv');
 }
 //print_r(array_values(explode("\n", $ups_nut)));
-
-echo ' ' . $name;
 
 // (2020-05-13, Jon.W) Added ups status data and updated ups-nut.sh script.
 [
@@ -65,10 +63,10 @@ echo ' ' . $name;
     $UPSUPSOverloaded,
     $UPSUPSBuck,
     $UPSUPSBoost,
-    $UPSForcedShutdown
-    ] = explode("\n", $ups_nut);
+    $UPSForcedShutdown,
+    $UPSAlarm
+] = array_pad(explode("\n", (string) $ups_nut), 23, 0);
 
-$rrd_name = ['app', $name, $app_id];
 $rrd_def = RrdDefinition::make()
     ->addDataset('charge', 'GAUGE', 0, 100)
     ->addDataset('battery_low', 'GAUGE', 0, 100)
@@ -105,13 +103,19 @@ $sensors = [
     ['state_name' => 'UPSUPSBuck', 'value' => $UPSUPSBuck],
     ['state_name' => 'UPSUPSBoost', 'value' => $UPSUPSBoost],
     ['state_name' => 'UPSForcedShutdown', 'value' => $UPSForcedShutdown],
+    ['state_name' => 'UPSAlarm', 'value' => $UPSAlarm],
 ];
 
-foreach ($sensors as $index => $sensor) {
+foreach ($sensors as $sensor) {
     $rrd_def->addDataset($sensor['state_name'], 'GAUGE', 0);
     $fields[$sensor['state_name']] = $sensor['value'];
 }
 
-$tags = compact('name', 'app_id', 'rrd_name', 'rrd_def');
-data_update($device, 'app', $tags, $fields);
+$tags = [
+    'name' => $name,
+    'app_id' => $app->app_id,
+    'rrd_name' => ['app', $name, $app->app_id],
+    'rrd_def' => $rrd_def,
+];
+app('Datastore')->put($device, 'app', $tags, $fields);
 update_application($app, $ups_nut, $fields);

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CpRtnDischarge.php
  *
@@ -28,9 +29,9 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
+use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class CpRtnDischarge implements SnmptrapHandler
 {
@@ -45,6 +46,6 @@ class CpRtnDischarge implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $returnInfo = CyberPowerUtil::getMessage($trap);
-        Log::event("$returnInfo", $device->device_id, 'trap', 1);
+        $trap->log("$returnInfo", Severity::Ok);
     }
 }

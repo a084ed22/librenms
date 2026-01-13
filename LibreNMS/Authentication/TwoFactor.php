@@ -1,4 +1,5 @@
 <?php
+
 /**
  * TwoFactor.php
  *
@@ -110,13 +111,13 @@ class TwoFactor
         $bin = '';
         $x = -1;
         while (++$x < $len) {
-            $bin .= str_pad(base_convert(ord($raw[$x]), 10, 2), 8, '0', STR_PAD_LEFT);
+            $bin .= str_pad(base_convert((string) ord($raw[$x]), 10, 2), 8, '0', STR_PAD_LEFT);
         }
         $bin = str_split($bin, 5);
         $ret = '';
         $x = -1;
-        while (++$x < sizeof($bin)) {
-            $ret .= self::$base32_enc[base_convert(str_pad($bin[$x], 5, '0'), 2, 10)];
+        while (++$x < count($bin)) {
+            $ret .= self::$base32_enc[(int) base_convert(str_pad($bin[$x], 5, '0'), 2, 10)];
         }
 
         return $ret;
@@ -192,9 +193,9 @@ class TwoFactor
         $truncated = (((ord($hash[$offset + 0]) & 0x7F) << 24) |
                 ((ord($hash[$offset + 1]) & 0xFF) << 16) |
                 ((ord($hash[$offset + 2]) & 0xFF) << 8) |
-                (ord($hash[$offset + 3]) & 0xFF)) % pow(10, self::OTP_SIZE);
+                (ord($hash[$offset + 3]) & 0xFF)) % 10 ** self::OTP_SIZE;
 
-        return str_pad($truncated, self::OTP_SIZE, '0', STR_PAD_LEFT);
+        return str_pad("$truncated", self::OTP_SIZE, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CiHelper.php
  *
@@ -30,18 +31,20 @@ use Symfony\Component\Process\Process;
 
 class CiHelper
 {
-    private $changed;
-    private $os;
-    private $unitEnv = [];
-    private $duskEnv = ['APP_ENV' => 'testing'];
+    private ?array $changed = null;
+    private ?array $os = null;
+    private array $unitEnv = [];
+    private array $duskEnv = ['APP_ENV' => 'testing'];
+    private ?array $excludedPhpunitGroups = null;
+    private ?Snmpsim $snmpsim = null;
 
-    private $completedChecks = [
+    private array $completedChecks = [
         'lint' => false,
         'style' => false,
         'unit' => false,
         'web' => false,
     ];
-    private $ciDefaults = [
+    private array $ciDefaults = [
         'quiet' => [
             'lint' => true,
             'style' => true,
@@ -49,7 +52,7 @@ class CiHelper
             'web' => false,
         ],
     ];
-    private $flags = [
+    private array $flags = [
         'lint_enable' => true,
         'style_enable' => true,
         'unit_enable' => true,
@@ -72,33 +75,36 @@ class CiHelper
         'fail-fast' => false,
         'full' => false,
         'quiet' => false,
+        'os-modules-only' => false,
     ];
 
-    public function __construct()
-    {
-    }
-
-    public function enable($check, $enabled = true)
+    public function enable($check, $enabled = true): void
     {
         $this->flags["{$check}_enable"] = $enabled;
     }
 
-    public function duskHeadless()
+    public function duskHeadless(): void
     {
         $this->duskEnv['CHROME_HEADLESS'] = 1;
     }
 
-    public function enableDb()
+    public function enableDb(): void
     {
         $this->unitEnv['DBTEST'] = 1;
     }
 
-    public function enableSnmpsim()
+    public function enableSnmpsim(): void
     {
-        $this->unitEnv['SNMPSIM'] = 1;
+        if ($this->snmpsim === null) {
+            $this->snmpsim = new Snmpsim('127.1.6.2', 1162);
+            $this->snmpsim->setupVenv();
+            $this->snmpsim->start();
+        }
+
+        $this->unitEnv['SNMPSIM'] = '127.1.6.2:1162';
     }
 
-    public function setModules(array $modules)
+    public function setModules(array $modules): void
     {
         $this->unitEnv['TEST_MODULES'] = implode(',', $modules);
         $this->flags['unit_modules'] = true;
@@ -106,7 +112,7 @@ class CiHelper
         $this->enableSnmpsim();
     }
 
-    public function setOS(array $os)
+    public function setOS(array $os): void
     {
         $this->os = $os;
         $this->flags['unit_os'] = true;
@@ -114,14 +120,19 @@ class CiHelper
         $this->enableSnmpsim();
     }
 
-    public function setFlags(array $flags)
+    public function setFlags(array $flags): void
     {
         foreach (array_intersect_key($flags, $this->flags) as $key => $value) {
             $this->flags[$key] = $value;
         }
     }
 
-    public function run()
+    public function setExcludedPhpunitGroups(array $groups): void
+    {
+        $this->excludedPhpunitGroups = $groups;
+    }
+
+    public function run(): int
     {
         $return = 0;
         foreach (array_keys($this->completedChecks) as $check) {
@@ -142,20 +153,15 @@ class CiHelper
      *
      * @return bool
      */
-    public function allChecksComplete()
+    public function allChecksComplete(): bool
     {
-        return array_reduce($this->completedChecks, function ($result, $check) {
-            return $result && $check;
-        }, false);
+        return array_reduce($this->completedChecks, fn ($result, $check) => $result && $check, false);
     }
 
     /**
      * Get a flag value
-     *
-     * @param  string  $name
-     * @return bool
      */
-    public function getFlag($name)
+    public function getFlag(string $name): ?bool
     {
         return $this->flags[$name] ?? null;
     }
@@ -165,7 +171,7 @@ class CiHelper
      *
      * @return bool[]
      */
-    public function getFlags()
+    public function getFlags(): array
     {
         return $this->flags;
     }
@@ -175,26 +181,49 @@ class CiHelper
      *
      * @return int the return value from phpunit (0 = success)
      */
-    public function checkUnit()
+    public function checkUnit(): int
     {
-        $phpunit_cmd = [$this->checkPhpExec('phpunit'), '--colors=always'];
+        $phpunit_cmd = [$this->checkPhpExec('phpunit'), '--colors=always', '--fail-on-all-issues'];
 
         if ($this->flags['fail-fast']) {
-            array_push($phpunit_cmd, '--stop-on-error', '--stop-on-failure');
+            $phpunit_cmd[] = '--stop-on-defect';
+        }
+
+        if (Debug::isVerbose()) {
+            $phpunit_cmd[] = '--debug';
+        }
+
+        if ($this->excludedPhpunitGroups) {
+            foreach ($this->excludedPhpunitGroups as $group) {
+                array_push($phpunit_cmd, '--exclude-group', $group);
+            }
         }
 
         // exclusive tests
         if ($this->flags['unit_os']) {
             echo 'Only checking os: ' . implode(', ', $this->os) . PHP_EOL;
-            $filter = implode('.*|', $this->os);
+            $filter = implode('|', $this->os);
             // include tests that don't have data providers and only data sets that match
             array_push($phpunit_cmd, '--group', 'os');
-            array_push($phpunit_cmd, '--filter', "/::test[A-Za-z]+$|::testOSDetection|::test[A-Za-z]+ with data set \"$filter.*\"$/");
+            if ($this->flags['os-modules-only']) {
+                array_push($phpunit_cmd, '--filter', "/::testOS with data set \"($filter)/");
+            } else {
+                if ($this->flags['ci']) {
+                    // If in CI mode, we're checking all OSes spread over multiple jobs, so we don't need a full "testOSDetection"
+                    array_push($phpunit_cmd, '--filter', "/with data set \"($filter)/");
+                } else {
+                    // If NOT in CI mode, explicity run testOSDetection for ALL OSes.
+                    array_push($phpunit_cmd, '--filter', "/::test\w+$|::testOSDetection|with data set \"($filter)/");
+                    // We also enable SVG and YAML tests
+                    array_push($phpunit_cmd, '--group', 'svg');
+                    array_push($phpunit_cmd, '--group', 'yaml');
+                }
+            }
         } elseif ($this->flags['unit_docs']) {
             array_push($phpunit_cmd, '--group', 'docs');
         } elseif ($this->flags['unit_svg']) {
-            $phpunit_cmd[] = 'tests/SVGTest.php';
-        } elseif ($this->flags['unit_modules']) {
+            array_push($phpunit_cmd, '--group', 'svg');
+        } elseif ($this->flags['unit_modules'] || $this->flags['os-modules-only']) {
             $phpunit_cmd[] = 'tests/OSModulesTest.php';
         }
 
@@ -206,7 +235,7 @@ class CiHelper
      *
      * @return int the return value from phpcs (0 = success)
      */
-    public function checkStyle()
+    public function checkStyle(): int
     {
         $cs_cmd = [
             $this->checkPhpExec('php-cs-fixer'),
@@ -221,7 +250,7 @@ class CiHelper
         return $this->execute('style', $cs_cmd);
     }
 
-    public function checkWeb()
+    public function checkWeb(): int
     {
         if (! $this->flags['ci']) {
             echo "Warning: dusk may erase your primary database, do not use yet\n";
@@ -232,16 +261,14 @@ class CiHelper
         if ($this->canCheck('web')) {
             echo "Preparing for web checks\n";
             $this->execute('config:clear', ['php', 'artisan', 'config:clear'], true);
-            $this->execute('dusk:update', ['php', 'artisan', 'dusk:update', '--detect'], true);
+            $this->execute('dusk:chrome-driver', ['php', 'artisan', 'dusk:chrome-driver', '--detect'], true);
 
             // check if web server is running
             $server = new Process(['php', '-S', '127.0.0.1:8000', base_path('server.php')], public_path(), ['APP_ENV' => 'dusk.testing']);
             $server->setTimeout(3600)
                 ->setIdleTimeout(3600)
                 ->start();
-            $server->waitUntil(function ($type, $output) {
-                return strpos($output, 'Development Server (http://127.0.0.1:8000) started') !== false;
-            });
+            $server->waitUntil(fn ($type, $output) => str_contains((string) $output, 'Development Server (http://127.0.0.1:8000) started'));
             if ($server->isRunning()) {
                 echo "Started server http://127.0.0.1:8000\n";
             }
@@ -261,7 +288,7 @@ class CiHelper
      *
      * @return int the return value from running php -l (0 = success)
      */
-    public function checkLint()
+    public function checkLint(): int
     {
         $return = 0;
         if (! $this->flags['lint_skip_php']) {
@@ -277,7 +304,7 @@ class CiHelper
 
             if (! $this->flags['lint_skip_phpstan']) {
                 $phpstan_cmd = [$this->checkPhpExec('phpstan'), 'analyze', '--no-interaction',  '--memory-limit=2G'];
-                $return += $this->execute('PHPStan Deprecated', $phpstan_cmd + ['--configuration=phpstan-deprecated.neon']);
+                $return += $this->execute('PHPStan Deprecated', array_merge($phpstan_cmd, ['--configuration=phpstan-deprecated.neon']));
                 $return += $this->execute('PHPStan', $phpstan_cmd);
             }
         }
@@ -286,7 +313,7 @@ class CiHelper
             $py_lint_cmd = [$this->checkPythonExec('pylint'), '-E', '-j', '0'];
 
             $files = $this->flags['full']
-                ? explode(PHP_EOL, rtrim(shell_exec("find . -name '*.py' -not -path './vendor/*' -not -path './tests/*'")))
+                ? explode(PHP_EOL, rtrim(shell_exec("find . -name '*.py' -not -path './vendor/*' -not -path './tests/*' -not -path './.python_venvs/*'")))
                 : $this->changed['python'];
 
             $py_lint_cmd = array_merge($py_lint_cmd, $files);
@@ -312,7 +339,7 @@ class CiHelper
      * @param  string  $type  type of check lint, style, or unit
      * @return int the return value from the check (0 = success)
      */
-    private function runCheck($type)
+    private function runCheck($type): int
     {
         if ($method = $this->canCheck($type)) {
             $ret = $this->$method();
@@ -379,13 +406,21 @@ class CiHelper
         $type = substr($name, $space ? $space + 1 : 0);
         $quiet = ($this->flags['ci'] && isset($this->ciDefaults['quiet'][$type])) ? $this->ciDefaults['quiet'][$type] : $this->flags['quiet'];
 
-        $proc->setTimeout(3600)->setIdleTimeout(3600);
+        $proc->setTimeout(7200)->setIdleTimeout(3600);
         if (! ($silence || $quiet)) {
             echo PHP_EOL;
-            $proc->setTty(Process::isTtySupported());
-        }
 
-        $proc->run();
+            // Run the process synchronously with a callback to handle output
+            $proc->run(function ($type, $buffer): void {
+                if (Process::ERR === $type) {
+                    fwrite(STDERR, $buffer);
+                } else {
+                    echo $buffer;
+                }
+            });
+        } else {
+            $proc->run();
+        }
 
         $duration = sprintf('%.2fs', microtime(true) - $start);
         if ($proc->getExitCode() > 0) {
@@ -401,7 +436,7 @@ class CiHelper
         return $proc->getExitCode();
     }
 
-    public function checkEnvSkips()
+    public function checkEnvSkips(): void
     {
         $this->flags['unit_skip'] = $this->flags['unit_skip'] || getenv('SKIP_UNIT_CHECK');
         $this->flags['lint_skip'] = $this->flags['lint_skip'] || getenv('SKIP_LINT_CHECK');
@@ -409,19 +444,22 @@ class CiHelper
         $this->flags['style_skip'] = $this->flags['style_skip'] || getenv('SKIP_STYLE_CHECK');
     }
 
-    public function detectChangedFiles()
+    public function detectChangedFiles(): void
     {
+        if ($this->flags['full'] || $this->flags['ci']) {
+            return;
+        }
         $changed_files = trim(getenv('FILES')) ?:
             exec("git diff --diff-filter=d --name-only master | tr '\n' ' '|sed 's/,*$//g'");
 
-        $this->flags['full'] = $this->flags['full'] || empty($changed_files); // don't disable full if already set
+        $this->flags['full'] = empty($changed_files); // don't disable full if already set
         $files = $changed_files ? explode(' ', $changed_files) : [];
 
         $this->changed = (new FileCategorizer($files))->categorize();
         $this->parseChangedFiles();
     }
 
-    private function parseChangedFiles()
+    private function parseChangedFiles(): void
     {
         if ($this->flags['full'] || ! empty($this->changed['full-checks'])) {
             $this->flags['full'] = true; // make sure full is set and skip changed file parsing
@@ -457,7 +495,7 @@ class CiHelper
      * @param  string  $exec  the name of the executable to check
      * @return string path to the executable
      */
-    private function checkPhpExec($exec)
+    private function checkPhpExec(string $exec): string
     {
         $path = "vendor/bin/$exec";
 
@@ -485,7 +523,7 @@ class CiHelper
      * @param  string  $exec  the name of the executable to check
      * @return string path to the executable
      */
-    private function checkPythonExec($exec)
+    private function checkPythonExec(string $exec): string
     {
         $home = getenv('HOME');
         $path = "$home/.local/bin/$exec";

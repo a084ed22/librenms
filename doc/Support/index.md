@@ -1,5 +1,3 @@
-path: blob/master/doc/
-
 # How to get Help
 
 - Browse through the navigation on the left
@@ -16,4 +14,4 @@ We have a few methods for you to get in touch to ask for help.
 
 - [Discord](https://t.libren.ms/discord) Active chat and discussion
 
-- [Bug Reports](https://community.librenms.org/c/help)
+- [Bug Reports](https://github.com/librenms/librenms/issues/new?template=bug_report.yml)

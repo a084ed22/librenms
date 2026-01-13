@@ -35,8 +35,8 @@ if (! empty($oids)) {
 $type = 'canopy';
 if (! empty($oids)) {
     [,$current] = explode(' ', $oids);
-    $current = $current / $divisor;
+    $current /= $divisor;
     $index = $oid;
     $descr = 'Signal';
-    discover_sensor($valid['sensor'], 'signal', $device, $oid, $index, $type, $descr, $divisor, '1', null, null, null, null, $current);
+    discover_sensor(null, 'signal', $device, $oid, $index, $type, $descr, $divisor, '1', null, null, null, null, $current);
 }

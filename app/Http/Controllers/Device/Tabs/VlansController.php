@@ -1,4 +1,5 @@
 <?php
+
 /**
  * VlansController.php
  *
@@ -27,6 +28,7 @@ namespace App\Http\Controllers\Device\Tabs;
 
 use App\Models\Device;
 use App\Models\PortVlan;
+use Illuminate\Http\Request;
 use LibreNMS\Interfaces\UI\DeviceTab;
 
 class VlansController implements DeviceTab
@@ -51,7 +53,7 @@ class VlansController implements DeviceTab
         return __('VLANs');
     }
 
-    public function data(Device $device): array
+    public function data(Device $device, Request $request): array
     {
         return [
             'vlans' => self::getVlans($device),
@@ -73,14 +75,18 @@ class VlansController implements DeviceTab
     {
         // port.device needed to prevent loading device multiple times
         $portVlan = PortVlan::where('ports_vlans.device_id', $device->device_id)
-            ->join('vlans', function ($join) {
+            ->join('vlans', function ($join): void {
                 $join
                 ->on('ports_vlans.vlan', 'vlans.vlan_vlan')
                 ->on('vlans.device_id', 'ports_vlans.device_id');
             })
+            ->join('ports', function ($join): void {
+                $join
+                ->on('ports_vlans.port_id', 'ports.port_id');
+            })
             ->with(['port.device'])
-            ->select('ports_vlans.*', 'vlans.vlan_name')
-            ->get();
+            ->select('ports_vlans.*', 'vlans.vlan_name')->orderBy('vlan_vlan')->orderBy('ports.ifName')->orderBy('ports.ifDescr')
+            ->get()->sortBy(['vlan', 'port']);
 
         $data = $portVlan->groupBy('vlan');
 

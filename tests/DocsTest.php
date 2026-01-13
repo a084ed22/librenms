@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DocsTest.php
  *
@@ -25,63 +26,38 @@
 
 namespace LibreNMS\Tests;
 
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Yaml\Yaml;
 
-class DocsTest extends TestCase
+final class DocsTest extends TestCase
 {
     private $hidden_pages = [
-        'API/API-Docs.md',
-        'Alerting/Old_Templates.md',
-        'Extensions/Alerting.md',
-        'Extensions/Email-Alerting.md',
-        'Extensions/Graphite.md',
-        'Extensions/InfluxDB.md',
-        'Extensions/OpenTSDB.md',
-        'Extensions/Poller-Service.md',
-        'Extensions/Port-Description-Parser.md',
-        'Extensions/Prometheus.md',
-        'Extensions/RRDCached-Security.md',
-        'General/Changelogs/2013.md',
-        'General/Changelogs/2014.md',
-        'General/Changelogs/2015.md',
-        'General/Changelogs/2016.md',
-        'General/Changelogs/2017.md',
-        'General/Changelogs/2018.md',
-        'General/Changelogs/2019.md',
-        'General/Contributing.md',
-        'General/Credits.md',
-        'Installation/Installation-(Debian-Ubuntu).md',
-        'Installation/Installation-(RHEL-CentOS).md',
-        'Installation/Installation-CentOS-6-Apache-Nginx.md',
-        'Installation/Installation-Ubuntu-1404-Apache.md',
-        'Installation/Installation-Ubuntu-1404-Lighttpd.md',
-        'Installation/Installation-Ubuntu-1404-Nginx.md',
-        'Installation/Installation-Ubuntu-1604-Apache.md',
-        'Installation/Installation-Ubuntu-1604-Nginx.md',
-        'Installation/Installation-Ubuntu-1804-Nginx.md',
-        'Installation/Installation-Ubuntu-1804-Apache.md',
-        'Installation/Installation-Debian-11-Nginx.md',
-        'Installation/Installation-CentOS-7-Nginx.md',
-        'Installation/Installation-CentOS-7-Apache.md',
-        'Installation/Installing-LibreNMS.md',
-        'Support/Support-New-OS.md',
-        'Installation/Ubuntu-image.md',
-        'Installation/CentOS-image.md',
     ];
 
-    /**
-     * @group docs
-     */
-    public function testDocExist()
+    #[Group('docs')]
+    public function testDocExist(): void
     {
         $mkdocs = Yaml::parse(file_get_contents(__DIR__ . '/../mkdocs.yml'));
         $dir = __DIR__ . '/../doc/';
-        $files = str_replace($dir, '', rtrim(`find $dir -name '*.md'`));
 
-        // check for missing pages
+        // Define paths to exclude
+        $exclude_paths = [
+            '*/Extensions/Applications/*',
+            '*/General/Changelogs/*',
+            '*/Alerting/Transports/*',
+        ];
+
+        // Build the exclusion part of the find command
+        $exclude_conditions = implode(' -not -path ', array_map(escapeshellarg(...), $exclude_paths));
+        $find_command = "find $dir -name '*.md' -not -path $exclude_conditions";
+
+        // Run the find command with exclusions
+        $files = str_replace($dir, '', rtrim((string) `$find_command`));
+
+        // Check for missing pages
         collect(explode(PHP_EOL, $files))
             ->diff(collect($mkdocs['nav'])->flatten()->merge($this->hidden_pages)) // grab defined pages and diff
-            ->each(function ($missing_doc) {
+            ->each(function ($missing_doc): void {
                 $this->fail("The doc $missing_doc doesn't exist in mkdocs.yml, please add it to the relevant section");
             });
 

@@ -1,28 +1,22 @@
 <table class="table table-condensed table-hover table-striped">
 <?php
 
-if ($bg == '#ffffff') {
-    $bg = '#e5e5e5';
-} else {
-    $bg = '#ffffff';
-}
-
-$types_array = explode(',', $vars['type']);
+$types_array = explode(',', strip_tags((string) $vars['type']));
 $ports = get_ports_from_type($types_array);
 
-foreach ($ports as $port) {
-    $if_list .= $seperator . $port['port_id'];
-    $seperator = ',';
-}
-
-unset($seperator);
+$if_list = implode(',', array_map(fn ($port) => $port['port_id'], $ports));
 
 // show title from config file (but ucwords it)
-$ctypes = collect(\LibreNMS\Config::get('custom_descr', []))->keyBy(function ($descr) {
-    return strtolower($descr);
+$ctypes = collect(\App\Facades\LibrenmsConfig::get('custom_descr', []))->keyBy(function ($descr) {
+    if (is_array($descr)) {
+        return strtolower((string) $descr[0]);
+    }
+
+    return strtolower((string) $descr);
 });
-array_walk($types_array, function (&$type) use ($ctypes) {
-    $type = ucwords($ctypes->get(strtolower($type), $type));
+array_walk($types_array, function (&$type) use ($ctypes): void {
+    $name = $ctypes->get(strtolower($type), $type);
+    $type = ucwords(is_array($name) ? $name[0] : $name);
 });
 
 $types = implode(' + ', $types_array);
@@ -42,14 +36,9 @@ if ($if_list) {
         $port = cleanPort($port);
         $done = 'yes';
         unset($class);
-        $port['ifAlias'] = str_ireplace($type . ': ', '', $port['ifAlias']);
+        $port['ifAlias'] = str_ireplace($port['type'] . ': ', '', $port['ifAlias']);
         $port['ifAlias'] = str_ireplace('[PNI]', 'Private', $port['ifAlias']);
         $ifclass = ifclass($port['ifOperStatus'], $port['ifAdminStatus']);
-        if ($bg == '#ffffff') {
-            $bg = '#e5e5e5';
-        } else {
-            $bg = '#ffffff';
-        }
 
         echo "<tr class='iftype'>
             <td><span class=list-large>" . generate_port_link($port, $port['port_descr_descr']) . "</span><br />
@@ -67,7 +56,7 @@ if ($if_list) {
 
         echo '<br />';
 
-        if (file_exists(get_port_rrdfile_path($port['hostname'], $port['port_id']))) {
+        if (Rrd::checkRrdExists(get_port_rrdfile_path($port['hostname'], $port['port_id']))) {
             $graph_type = 'port_bits';
 
             include 'includes/html/print-interface-graphs.inc.php';

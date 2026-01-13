@@ -15,9 +15,7 @@
  */
 
 // FUA
-echo "<h3>$title</h3>";
 ?>
-
 <form class="form-inline">
 <?php echo csrf_field() ?>
 <table class="table table-striped table-condensed table-bordered">
@@ -61,7 +59,7 @@ foreach (dbFetchRows("SELECT * FROM `$table` WHERE `device_id` = ? AND `sensor_d
         <td>' . $sensor['sensor_class'] . '</td>
         <td>' . $sensor['sensor_type'] . '</td>
         <td style="white-space: nowrap">' . $sensor['sensor_descr'] . '</td>
-        <td>' . $sensor['sensor_current'] . '</td>
+        <td>' . $sensor['sensor_current'] . ($sensor['sensor_class'] == 'temperature' ? '°C' : '') . '</td>
         <td>
         <div class="form-group has-feedback">
         <input type="text" class="form-control col-sm-1 input-sm sensor" id="high-' . $sensor['device_id'] . '" data-device_id="' . $sensor['device_id'] . '" data-value_type="sensor_limit" data-sensor_id="' . $sensor['sensor_id'] . '" value="' . $sensor['sensor_limit'] . '">

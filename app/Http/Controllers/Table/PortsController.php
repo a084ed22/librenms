@@ -1,4 +1,5 @@
 <?php
+
 /*
  * PortsController.php
  *
@@ -26,12 +27,12 @@
 namespace App\Http\Controllers\Table;
 
 use App\Models\Port;
-use DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
 use LibreNMS\Util\Number;
 use LibreNMS\Util\Rewrite;
-use LibreNMS\Util\Url;
 
 class PortsController extends TableController
 {
@@ -63,6 +64,8 @@ class PortsController extends TableController
             'port_descr_type',
             'ports.disabled' => 'disabled',
             'ports.ignore' => 'ignore',
+            'group' => fn ($query, $group) => $query->whereHas('groups', fn ($query) => $query->where('id', $group)),
+            'devicegroup' => fn ($query, $devicegroup) => $query->whereHas('device', fn ($query) => $query->whereHas('groups', fn ($query) => $query->where('id', $devicegroup))),
         ];
     }
 
@@ -74,6 +77,8 @@ class PortsController extends TableController
             'ifDescr',
             'secondsIfLastChange',
             'ifConnectorPresent',
+            'ifInErrors',
+            'ifOutErrors',
             'ifInErrors_delta',
             'ifOutErrors_delta',
             'ifInOctets_rate',
@@ -90,35 +95,22 @@ class PortsController extends TableController
     protected function baseQuery($request)
     {
         $query = Port::hasAccess($request->user())
-            ->with('device')
+            ->with(['device', 'device.location'])
             ->leftJoin('devices', 'ports.device_id', 'devices.device_id')
             ->where('deleted', $request->get('deleted', 0)) // always filter deleted
-            ->when($request->get('hostname'), function (Builder $query, $hostname) {
-                $query->where(function (Builder $query) use ($hostname) {
-                    $query->where('hostname', 'like', "%$hostname%")
-                        ->orWhere('sysName', 'like', "%$hostname%");
+            ->when($request->get('hostname'), function (Builder $query, $hostname): void {
+                $query->where(function (Builder $query) use ($hostname): void {
+                    $query->where('devices.hostname', 'like', "%$hostname%")
+                        ->orWhere('devices.sysName', 'like', "%$hostname%");
                 });
             })
-            ->when($request->get('ifAlias'), function (Builder $query, $ifAlias) {
-                return $query->where('ifAlias', 'like', "%$ifAlias%");
-            })
-            ->when($request->get('errors'), function (Builder $query) {
-                $query->where(function (Builder $query) {
-                    return $query->where('ifInErrors_delta', '>', 0)
-                        ->orWhere('ifOutErrors_delta', '>', 0);
-                });
-            })
-            ->when($request->get('state'), function (Builder $query, $state) {
-                switch ($state) {
-                    case 'down':
-                        return $query->where('ifAdminStatus', 'up')->where('ifOperStatus', 'down');
-                    case 'up':
-                        return $query->where('ifAdminStatus', 'up')->where('ifOperStatus', 'up');
-                    case 'admindown':
-                        return $query->where('ifAdminStatus', 'down')->where('ports.ignore', 0);
-                    default:
-                        return $query;
-                }
+            ->when($request->get('ifAlias'), fn (Builder $query, $ifAlias) => $query->where('ifAlias', 'like', "%$ifAlias%"))
+            ->when($request->get('errors'), fn (Builder $query) => $query->hasErrors())
+            ->when($request->get('state'), fn (Builder $query, $state) => match ($state) {
+                'down' => $query->isDown(),
+                'up' => $query->isUp(),
+                'admindown' => $query->isShutdown(),
+                default => $query,
             });
 
         $select = [
@@ -135,7 +127,7 @@ class PortsController extends TableController
     }
 
     /**
-     * @param  \App\Models\Port  $port
+     * @param  Port  $port
      * @return array
      */
     public function formatItem($port)
@@ -146,9 +138,9 @@ class PortsController extends TableController
 
         return [
             'status' => $status,
-            'device' => Url::deviceLink($port->device),
-            'port' => Url::portLink($port),
-            'secondsIfLastChange' => ceil($port->device->uptime - ($port->ifLastChange / 100)),
+            'device' => Blade::render('<x-device-link :device="$device" />', ['device' => $port->device]),
+            'port' => Blade::render('<x-port-link :port="$port"/>', ['port' => $port]),
+            'secondsIfLastChange' => ceil($port->device?->uptime - ($port->ifLastChange / 100)),
             'ifConnectorPresent' => ($port->ifConnectorPresent == 'true') ? 'yes' : 'no',
             'ifSpeed' => $port->ifSpeed,
             'ifMtu' => $port->ifMtu,
@@ -156,11 +148,76 @@ class PortsController extends TableController
             'ifOutOctets_rate' => $port->ifOutOctets_rate * 8,
             'ifInUcastPkts_rate' => $port->ifInUcastPkts_rate,
             'ifOutUcastPkts_rate' => $port->ifOutUcastPkts_rate,
-            'ifInErrors_delta' => $port->poll_period ? Number::formatSi($port->ifInErrors_delta / $port->poll_period, 2, 3, 'EPS') : '',
-            'ifOutErrors_delta' => $port->poll_period ? Number::formatSi($port->ifOutErrors_delta / $port->poll_period, 2, 3, 'EPS') : '',
+            'ifInErrors' => $port->ifInErrors,
+            'ifOutErrors' => $port->ifOutErrors,
+            'ifInErrors_delta' => $port->poll_period ? Number::formatSi($port->ifInErrors_delta / $port->poll_period, 2, 0, 'EPS') : '',
+            'ifOutErrors_delta' => $port->poll_period ? Number::formatSi($port->ifOutErrors_delta / $port->poll_period, 2, 0, 'EPS') : '',
             'ifType' => Rewrite::normalizeIfType($port->ifType),
-            'ifAlias' => $port->ifAlias,
+            'ifAlias' => htmlentities((string) $port->ifAlias),
             'actions' => (string) view('port.actions', ['port' => $port]),
+        ];
+    }
+
+    /**
+     * Get headers for CSV export
+     *
+     * @return array
+     */
+    protected function getExportHeaders()
+    {
+        return [
+            'Device ID',
+            'Hostname',
+            'Port',
+            'ifIndex',
+            'Status',
+            'Admin Status',
+            'Speed',
+            'MTU',
+            'Type',
+            'In Rate (bps)',
+            'Out Rate (bps)',
+            'In Errors',
+            'Out Errors',
+            'In Error Rate',
+            'Out Error Rate',
+            'Description',
+            'Last Change',
+            'Connector Present',
+        ];
+    }
+
+    /**
+     * Format a row for CSV export
+     *
+     * @param  Port  $port
+     * @return array
+     */
+    protected function formatExportRow($port)
+    {
+        $status = $port->ifOperStatus;
+        $adminStatus = $port->ifAdminStatus;
+        $speed = Number::formatSi($port->ifSpeed);
+
+        return [
+            'device_id' => $port->device_id,
+            'hostname' => $port->device->displayName(),
+            'port' => $port->ifName ?: $port->ifDescr,
+            'ifindex' => $port->ifIndex,
+            'status' => $status,
+            'admin_status' => $adminStatus,
+            'speed' => $speed,
+            'mtu' => $port->ifMtu,
+            'type' => Rewrite::normalizeIfType($port->ifType),
+            'in_rate' => Number::formatBi($port->ifInOctets_rate * 8) . 'bps',
+            'out_rate' => Number::formatBi($port->ifOutOctets_rate * 8) . 'bps',
+            'in_errors' => $port->ifInErrors,
+            'out_errors' => $port->ifOutErrors,
+            'in_errors_rate' => $port->poll_period ? Number::formatSi($port->ifInErrors_delta / $port->poll_period, 2, 0, 'EPS') : '',
+            'out_errors_rate' => $port->poll_period ? Number::formatSi($port->ifOutErrors_delta / $port->poll_period, 2, 0, 'EPS') : '',
+            'description' => $port->ifAlias,
+            'last_change' => $port->device ? ($port->device->uptime - ($port->ifLastChange / 100)) : 'N/A',
+            'connector_present' => ($port->ifConnectorPresent == 'true') ? 'yes' : 'no',
         ];
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CpLowBattery.php
  *
@@ -28,9 +29,9 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
+use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class CpLowBattery implements SnmptrapHandler
 {
@@ -45,6 +46,6 @@ class CpLowBattery implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $battery = CyberPowerUtil::getMessage($trap);
-        Log::event("$battery", $device->device_id, 'trap', 4);
+        $trap->log("$battery", Severity::Warning);
     }
 }

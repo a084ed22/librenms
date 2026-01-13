@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class RenamePrinterColumns extends Migration
+return new class extends Migration
 {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
         Schema::table('printer_supplies', function (Blueprint $table) {
             $table->renameColumn('toner_id', 'supply_id');
@@ -46,7 +46,7 @@ class RenamePrinterColumns extends Migration
         });
 
         Schema::table('printer_supplies', function (Blueprint $table) {
-            $table->string('supply_descr', 255)->change();
+            $table->string('supply_descr', 255)->default('')->change();
         });
     }
 
@@ -55,7 +55,7 @@ class RenamePrinterColumns extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::table('printer_supplies', function (Blueprint $table) {
             $table->renameColumn('supply_id', 'toner_id');
@@ -90,7 +90,7 @@ class RenamePrinterColumns extends Migration
         });
 
         Schema::table('printer_supplies', function (Blueprint $table) {
-            $table->string('toner_descr', 32)->change();
+            $table->string('toner_descr', 32)->default('')->change();
         });
     }
-}
+};

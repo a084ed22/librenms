@@ -1,12 +1,19 @@
 <?php
 
-$bill_id = $vars['bill_id'];
+use App\Models\Bill;
+use LibreNMS\Billing;
+use LibreNMS\Util\Html;
+use LibreNMS\Util\Number;
+
+$bill_id = (int) ($vars['bill_id'] ?? 0);
 
 if (Auth::user()->hasGlobalAdmin()) {
     include 'includes/html/pages/bill/actions.inc.php';
 }
 
-if (bill_permitted($bill_id)) {
+if (!Bill::where('bill_id', $bill_id)->exists()) {
+    abort(404);
+} elseif (bill_permitted($bill_id)) {
     $bill_data = dbFetchRow('SELECT * FROM bills WHERE bill_id = ?', [$bill_id]);
 
     $bill_name = $bill_data['bill_name'];
@@ -23,7 +30,7 @@ if (bill_permitted($bill_id)) {
     $bill_name = $bill_data['bill_name'];
     $dayofmonth = $bill_data['bill_day'];
 
-    $day_data = getDates($dayofmonth);
+    $day_data = Billing::getDates($dayofmonth, 0);
 
     $datefrom = $day_data['0'];
     $dateto = $day_data['1'];
@@ -35,6 +42,7 @@ if (bill_permitted($bill_id)) {
     $total_data = $bill_data['total_data'];
     $rate_average = $bill_data['rate_average'];
 
+    $paid_kb ??= 0;
     if ($rate_95th > $paid_kb) {
         $over = ($rate_95th - $paid_kb);
         $bill_text = $over . 'Kbit excess.';
@@ -45,8 +53,8 @@ if (bill_permitted($bill_id)) {
         $bill_color = '#0000cc';
     }
 
-    $fromtext = dbFetchCell("SELECT DATE_FORMAT($datefrom, '" . \LibreNMS\Config::get('dateformat.mysql.date') . "')");
-    $totext = dbFetchCell("SELECT DATE_FORMAT($dateto, '" . \LibreNMS\Config::get('dateformat.mysql.date') . "')");
+    $fromtext = dbFetchCell("SELECT DATE_FORMAT($datefrom, '" . \App\Facades\LibrenmsConfig::get('dateformat.mysql.date') . "')");
+    $totext = dbFetchCell("SELECT DATE_FORMAT($dateto, '" . \App\Facades\LibrenmsConfig::get('dateformat.mysql.date') . "')");
     $unixfrom = dbFetchCell("SELECT UNIX_TIMESTAMP('$datefrom')");
     $unixto = dbFetchCell("SELECT UNIX_TIMESTAMP('$dateto')");
 
@@ -60,9 +68,7 @@ if (bill_permitted($bill_id)) {
         [$bill_id]
     );
 
-    if (! $vars['view']) {
-        $vars['view'] = 'quick';
-    }
+    $vars['view'] ??= 'quick';
 
     function print_port_list($ports)
     {
@@ -85,7 +91,7 @@ if (bill_permitted($bill_id)) {
         echo '</div></div>';
     }//end print_port_list?>
 
-    <h2><?php   echo "Bill: ${bill_data['bill_name']}"; ?></h2>
+    <h2>Bill: <?php echo htmlentities((string) $bill_data['bill_name']); ?></h2>
 
     <?php
     print_optionbar_start();
@@ -158,21 +164,20 @@ if (bill_permitted($bill_id)) {
     <tr>
         <?php   if ($bill_data['bill_type'] == 'quota') {
             // The Customer is billed based on a pre-paid quota with overage in xB
-            $percent = round((($total_data) / $bill_data['bill_quota'] * 100), 2);
+            $percent = Number::calculatePercent($total_data, $bill_data['bill_quota']);
             $unit = 'MB';
             $total_data = round($total_data, 2);
-            $background = \LibreNMS\Util\Color::percentage($percent, null);
             $type = '&amp;ave=yes'; ?>
         <td>
-            <?php echo format_bytes_billing($total_data) ?> of <?php echo format_bytes_billing($bill_data['bill_quota']) . ' (' . $percent . '%)' ?>
-            - Average rate <?php echo \LibreNMS\Util\Number::formatSi($rate_average, 2, 3, 'bps') ?>
+            <?php echo Billing::formatBytes($total_data) ?> of <?php echo Billing::formatBytes($bill_data['bill_quota']) . ' (' . $percent . '%)' ?>
+            - Average rate <?php echo Number::formatSi($rate_average, 2, 0, 'bps') ?>
         </td>
-        <td style="width: 210px;"><?php echo print_percentage_bar(200, 20, $percent, null, 'ffffff', $background['left'], $percent . '%', 'ffffff', $background['right']) ?></td>
+        <td style="width: 210px;"><?php echo Html::percentageBar(200, 10, $percent, right_text: $percent . '%'); ?></td>
         </tr>
         <tr>
             <td colspan="2">
             <?php
-            echo 'Predicted usage: ' . format_bytes_billing(getPredictedUsage($bill_data['bill_day'], $bill_data['total_data'])); ?>
+            echo 'Predicted usage: ' . Billing::formatBytes(Billing::getPredictedUsage($bill_data['bill_day'], $bill_data['total_data'])); ?>
             </td>
             <?php
         } elseif ($bill_data['bill_type'] == 'cdr') {
@@ -180,20 +185,19 @@ if (bill_permitted($bill_id)) {
             $unit = 'kbps';
             $cdr = $bill_data['bill_cdr'];
             $rate_95th = round($rate_95th, 2);
-            $percent = round((($rate_95th) / $cdr * 100), 2);
-            $background = \LibreNMS\Util\Color::percentage($percent, null);
+            $percent = Number::calculatePercent($rate_95th, $cdr);
             $type = '&amp;95th=yes'; ?>
         <td>
-            <?php echo \LibreNMS\Util\Number::formatSi($rate_95th, 2, 3, '') . 'bps' ?> of <?php echo \LibreNMS\Util\Number::formatSi($cdr, 2, 3, '') . 'bps (' . $percent . '%)' ?> (95th%ile)
+            <?php echo Number::formatSi($rate_95th, 2, 0, '') . 'bps' ?> of <?php echo Number::formatSi($cdr, 2, 0, '') . 'bps (' . $percent . '%)' ?> (95th%ile)
         </td>
         <td style="width: 210px;">
-            <?php echo print_percentage_bar(200, 20, $percent, null, 'ffffff', $background['left'], $percent . '%', 'ffffff', $background['right']) ?>
+            <?php echo Html::percentageBar(200, 10, $percent, right_text: $percent . '%'); ?>
         </td>
         </tr>
         <tr>
             <td colspan="2">
             <?php
-                echo 'Predicted usage: ' . \LibreNMS\Util\Number::formatSi(getPredictedUsage($bill_data['bill_day'], $bill_data['rate_95th']), 2, 3, '') . 'bps'; ?>
+                echo 'Predicted usage: ' . Number::formatSi(Billing::getPredictedUsage($bill_data['bill_day'], $bill_data['rate_95th']), 2, 0, '') . 'bps'; ?>
             </td>
 
         <?php
@@ -211,22 +215,23 @@ if (bill_permitted($bill_id)) {
         $rightnow = date('U');
 
         if ($vars['view'] == 'accurate') {
-            $bi = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($_GET['bill_code']);
+            $bill_code = (string) ($_GET['bill_code'] ?? '');
+            $bi = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($bill_code);
             $bi .= '&amp;from=' . $unixfrom . '&amp;to=' . $unixto;
             $bi .= '&amp;x=1190&amp;y=250';
             $bi .= "$type'>";
 
-            $li = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . $_GET['bill_code'];
+            $li = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($bill_code);
             $li .= '&amp;from=' . $unix_prev_from . '&amp;to=' . $unix_prev_to;
             $li .= '&amp;x=1190&amp;y=250';
             $li .= "$type'>";
 
-            $di = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($_GET['bill_code']);
-            $di .= '&amp;from=' . \LibreNMS\Config::get('time.day') . '&amp;to=' . \LibreNMS\Config::get('time.now');
+            $di = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($bill_code);
+            $di .= '&amp;from=' . \App\Facades\LibrenmsConfig::get('time.day') . '&amp;to=' . \App\Facades\LibrenmsConfig::get('time.now');
             $di .= '&amp;x=1190&amp;y=250';
             $di .= "$type'>";
 
-            $mi = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($_GET['bill_code']);
+            $mi = "<img src='billing-graph.php?bill_id=" . $bill_id . '&amp;bill_code=' . htmlspecialchars($bill_code);
             $mi .= '&amp;from=' . $lastmonth . '&amp;to=' . $rightnow;
             $mi .= '&amp;x=1190&amp;y=250';
             $mi .= "$type'>";
@@ -240,7 +245,7 @@ if (bill_permitted($bill_id)) {
             $li .= '&amp;width=1000&amp;height=200&amp;total=1&amp;dir=' . $dir_95th . "'>";
 
             $di = "<img src='graph.php?type=bill_bits&amp;id=" . $bill_id;
-            $di .= '&amp;from=' . \LibreNMS\Config::get('time.day') . '&amp;to=' . \LibreNMS\Config::get('time.now');
+            $di .= '&amp;from=' . \App\Facades\LibrenmsConfig::get('time.day') . '&amp;to=' . \App\Facades\LibrenmsConfig::get('time.now');
             $di .= '&amp;width=1000&amp;height=200&amp;total=1&amp;dir=' . $dir_95th . "'>";
 
             $mi = "<img src='graph.php?type=bill_bits&amp;id=" . $bill_id;

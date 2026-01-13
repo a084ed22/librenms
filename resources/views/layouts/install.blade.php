@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="{{ asset('css/bootstrap4.min.css') }}" rel="stylesheet" type="text/css"/>
-    <link href="{{ asset('css/font-awesome.min.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="{{ asset('css/fontawesome.min.css') }}" rel="stylesheet">
     <script src="{{ asset('js/jquery.min.js') }}"></script>
     <script src="{{ asset('js/popper.min.js') }}"></script>
     <script src="{{ asset('js/bootstrap4.min.js') }}"></script>
@@ -95,7 +95,7 @@
 <div class="container">
     <div class="card col-lg-8 offset-lg-2 col-md-10 offset-md-1 col-12 primary-panel">
         <div class="card-img-top">
-            <img class="card-img-top p-4" src="{{ asset(\LibreNMS\Config::get('title_image', "images/librenms_logo_light.svg")) }}" alt="LibreNMS">
+            <img class="card-img-top p-4" src="{{ asset(\App\Facades\LibrenmsConfig::get('title_image', "images/librenms_logo_light.svg")) }}" alt="LibreNMS">
             <div id="progress-icons" class="d-flex flex-row justify-content-around">
                 <div class="install-progress complete"></div>
                 @foreach($steps as $name => $controller)
@@ -107,7 +107,7 @@
                            @if(!$controller->enabled()) disabled @endif"
                            title="{{ __("install.$name.title") }}"
                         >
-                            <i class="fa fa-lg {{ $controller->icon() }}"></i>
+                            <i class="{{ $controller->icon() }}"></i>
                         </a>
                     </div>
                     <div id="progress-{{ $name }}-bar" class="install-progress loop @if($controller->complete() || $step == 'finish') complete @endif"></div>

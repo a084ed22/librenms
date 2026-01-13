@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Copyright (C) 2015 Daniel Preussker <f0o@devilcode.org>
  * This program is free software: you can redistribute it and/or modify
@@ -57,17 +58,14 @@ use LibreNMS\Exceptions\JsonAppParsingFailedException;
 use LibreNMS\RRD\RrdDefinition;
 
 $name = 'gpsd';
-$app_id = $app['app_id'];
 
-echo " $name\n";
-
-if ($app_id > 0) {
+if ($app->app_id > 0) {
     if (! empty($agent_data['app'][$name])) {
         $gpsd = $agent_data['app'][$name];
 
         $gpsd_parsed = [];
 
-        foreach (explode("\n", $gpsd) as $line) {
+        foreach (explode("\n", (string) $gpsd) as $line) {
             [$field, $data] = explode(':', $line);
             $gpsd_parsed[$field] = $data;
         }
@@ -102,7 +100,7 @@ if ($app_id > 0) {
 
             [$gpsd['data']['mode'], $gpsd['data']['hdop'], $gpsd['data']['vdop'],
                 $gpsd['data']['latitude'], $gpsd['data']['longitude'], $gpsd['data']['altitude'],
-                $gpsd['data']['satellites'], $gpsd['data']['satellites_used']] = explode("\n", $legacy);
+                $gpsd['data']['satellites'], $gpsd['data']['satellites_used']] = explode("\n", (string) $legacy);
         } catch (JsonAppException $e) {
             // Set Empty metrics and error message
 
@@ -124,7 +122,6 @@ if ($app_id > 0) {
 
     // Generate RRD Def
 
-    $rrd_name = ['app', $name, $app_id];
     $rrd_def = RrdDefinition::make()
         ->addDataset('mode', 'GAUGE', 0, 4)
         ->addDataset('hdop', 'GAUGE', 0, 100)
@@ -133,8 +130,13 @@ if ($app_id > 0) {
         ->addDataset('satellites_used', 'GAUGE', 0, 40);
 
     // Update Application
-    $tags = compact('name', 'app_id', 'rrd_name', 'rrd_def');
-    data_update($device, 'app', $tags, $fields);
+    $tags = [
+        'name' => $name,
+        'app_id' => $app->app_id,
+        'rrd_name' => ['app', $name, $app->app_id],
+        'rrd_def' => $rrd_def,
+    ];
+    app('Datastore')->put($device, 'app', $tags, $fields);
 
     if (! empty($agent_data['app'][$name])) {
         update_application($app, $gpsd, $fields);

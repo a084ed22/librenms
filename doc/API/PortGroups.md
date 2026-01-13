@@ -1,6 +1,3 @@
-source: API/PortGroups.md
-path: blob/master/doc/
-
 ### `get_graph_by_portgroup`
 
 Get the graph based on the group type.
@@ -22,7 +19,7 @@ Input:
 Example:
 
 ```curl
-curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://librenms.org/api/v0/portgroups/transit,peering
+curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://foo.example/api/v0/portgroups/transit,peering
 ```
 
 Output:
@@ -50,7 +47,7 @@ Input:
 Example:
 
 ```curl
-curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://librenms.org/api/v0/portgroups/multiport/bits/1,2,3
+curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://foo.example/api/v0/portgroups/multiport/bits/1,2,3
 ```
 
 Output:

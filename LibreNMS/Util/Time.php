@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Time.php
  *
@@ -25,9 +26,14 @@
 
 namespace LibreNMS\Util;
 
+use Carbon\CarbonInterface;
+use Carbon\Exceptions\InvalidFormatException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
+
 class Time
 {
-    public static function legacyTimeSpecToSecs($description)
+    public static function legacyTimeSpecToSecs(string $description): int
     {
         $conversion = [
             'now' => 0,
@@ -46,90 +52,155 @@ class Time
             'twoyear' => 63072000,
         ];
 
-        return isset($conversion[$description]) ? $conversion[$description] : 0;
+        return $conversion[$description] ?? 0;
     }
 
-    public static function formatInterval($interval, $format = 'long')
-    {
-        $result = '';
-        $data = [
-            'years' => 31536000,
-            'days' => 86400,
-            'hours' => 3600,
-            'minutes' => 60,
-            'seconds' => 1,
-        ];
-
-        foreach ($data as $k => $v) {
-            if ($interval >= $v) {
-                $diff = floor($interval / $v);
-
-                $result .= " $diff";
-                if ($format == 'short') {
-                    $result .= substr($k, 0, 1);
-                }
-
-                if ($format != 'short' && $diff > 1) {
-                    $result .= ' ' . $k;
-                }
-
-                if ($format != 'short' && $diff < 2) {
-                    $result .= ' ' . substr($k, 0, -1);
-                }
-
-                $interval -= $v * $diff;
-            }
-        }
-
-        return $result;
-    }
-
-    /*
-     * @param integer seconds of a time period
-     * @return string human readably time period
+    /**
+     * Format seconds as a human readable interval.  Negative seconds will say "ago".
      */
-    public static function humanTime($s)
+    public static function formatInterval(?int $seconds, bool $short = false, ?int $parts = null): string
     {
-        $ret = [];
-
-        if ($s >= 86400) {
-            $d = floor($s / 86400);
-            $s -= $d * 86400;
-            if ($d == 1) {
-                $ret[] = $d . ' day';
-            } else {
-                $ret[] = $d . ' days';
-            }
+        if ($seconds == 0) {
+            return '';
         }
 
-        if ($s >= 3600) {
-            $h = floor($s / 3600);
-            $s -= $h * 3600;
-            if ($h == 1) {
-                $ret[] = $h . ' hour';
-            } else {
-                $ret[] = $h . ' hours';
-            }
+        try {
+            return Carbon::now()->subSeconds(abs($seconds))->diffForHumans(
+                syntax: $seconds < 0 ? CarbonInterface::DIFF_RELATIVE_TO_NOW : CarbonInterface::DIFF_ABSOLUTE,
+                short: $short,
+                parts: $parts ?? ($short ? 3 : 4),
+            );
+        } catch (\Exception) {
+            return '';
+        }
+    }
+
+    /**
+     * Parse a time string into a timestamp including signed relative times using:
+     * m - month
+     * d - day
+     * h - hour
+     * y - year
+     */
+    public static function parseAt(string|int $time): int
+    {
+        if (is_numeric($time)) {
+            return $time < 0 ? time() + $time : intval($time);
         }
 
-        if ($s >= 60) {
-            $m = floor($s / 60);
-            $s -= $m * 60;
-            if ($m == 1) {
-                $ret[] = $m . ' minute';
-            } else {
-                $ret[] = $m . ' minutes';
-            }
+        if (preg_match('/^[+-]\d+[hdmy]$/', $time)) {
+            $units = [
+                'm' => 60,
+                'h' => 3600,
+                'd' => 86400,
+                'y' => 31557600,
+            ];
+            $value = Number::cast(substr($time, 1, -1));
+            $unit = substr($time, -1);
+
+            $offset = ($time[0] == '-' ? -1 : 1) * $units[$unit] * $value;
+
+            return time() + $offset;
         }
 
-        if ($s > 0) {
-            if ($s == 1) {
-                $ret[] = $s . ' second';
-            } else {
-                $ret[] = $s . ' seconds';
-            }
+        return (int) strtotime($time);
+    }
+
+    /**
+     * Parse flexible time input into a Unix timestamp (seconds).
+     * Accepts:
+     * - null/empty: returns null
+     * - Numeric seconds or milliseconds since epoch
+     * - Relative offsets like 6h, -1d, +2w, 1m, 1y (sign optional => defaults to past)
+     * - Parsable date/time strings (Carbon::parse)
+     * Returns null on invalid input.
+     */
+    public static function parseInput(string|int|null $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
         }
 
-        return implode(' ,', $ret);
+        if (is_numeric($value)) {
+            return Carbon::createFromTimestampUTC($value)->getTimestamp();
+        }
+
+        // adapt relative like 6h, -1d, +2m, 1y
+        if (preg_match('/^([+-])?(\d+)([hdmwys]|mo)$/', $value, $matches)) {
+            $sign = $matches[1] ?: '-';
+            $unit = match ($matches[3]) {
+                's' => 'second',
+                'm' => 'minute',
+                'h' => 'hour',
+                'd' => 'day',
+                'w' => 'week',
+                'mo' => 'month',
+                'y' => 'year',
+            };
+
+            $value = "$sign$matches[2] $unit";
+        }
+
+        try {
+            return Carbon::parse($value)->getTimestamp();
+        } catch (InvalidFormatException) {
+            return null;
+        }
+    }
+
+    /**
+     * Take a date and return the number of days from now
+     */
+    public static function dateToMinutes(string|int $date): int
+    {
+        $carbon = new Carbon();
+
+        return (int) $carbon->diffInMinutes($date);
+    }
+
+    public static function durationToSeconds(string $duration): int
+    {
+        if (preg_match('/(\d+)([mhd]?)/', $duration, $matches)) {
+            $multipliers = [
+                'm' => 60,
+                'h' => 3600,
+                'd' => 86400,
+            ];
+
+            $multiplier = $multipliers[$matches[2]] ?? 1;
+
+            return $matches[1] * $multiplier;
+        }
+
+        return $duration === '' ? 0 : 300;
+    }
+
+    /**
+     * Return a random time between the two given times.
+     */
+    public static function randomBetween(string|int $min, string|int $max): Carbon
+    {
+        $time = new Carbon($min);
+
+        $time->addSeconds(mt_rand(0, (int) $time->diffInSeconds(new Carbon($max), true)));
+
+        return $time;
+    }
+
+    /**
+     * Return a psedudo random time between the two given times.
+     * The same time will always be returned for a given APP_KEY
+     */
+    public static function pseudoRandomBetween(string|int $min, string|int $max, string $format = 'H:i'): string
+    {
+        // Seed the random number generator to get consistent results for a given APP_KEY
+        mt_srand(crc32(Config::get('app.key') . $min . $max));
+
+        $time = self::randomBetween($min, $max);
+
+        // Need to restore the seed after
+        mt_srand();
+
+        return $time->format($format);
     }
 }

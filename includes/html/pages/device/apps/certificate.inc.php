@@ -5,10 +5,10 @@ $domain_list = Rrd::getRrdApplicationArrays($device, $app['app_id'], 'certificat
 print_optionbar_start();
 
 $link_array = [
-    'page'   => 'device',
+    'page' => 'device',
     'device' => $device['device_id'],
-    'tab'    => 'apps',
-    'app'    => 'certificate',
+    'tab' => 'apps',
+    'app' => 'certificate',
 ];
 
 $cert_name_list = [];
@@ -16,8 +16,8 @@ $cert_name_list = [];
 foreach ($domain_list as $label) {
     $cert_name = $label;
 
-    if ($vars['cert_name'] == $cert_name) {
-        $label = sprintf('⚫ %s', $label);
+    if (isset($vars['cert_name']) && ($vars['cert_name'] == $cert_name)) {
+        $label = '<span class="pagemenu-selected">' . $label . '</span>';
     }
 
     array_push($cert_name_list, generate_link($label, $link_array, ['cert_name' => $cert_name]));
@@ -28,7 +28,7 @@ printf('%s | certificates: %s', generate_link('All Certificates', $link_array), 
 print_optionbar_end();
 
 $graphs = [
-    'certificate_age'            => 'Age',
+    'certificate_age' => 'Age',
     'certificate_remaining_days' => 'Remaining days',
 ];
 

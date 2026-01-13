@@ -1,4 +1,5 @@
 <?php
+
 /**
  * AlertsController.php
  *
@@ -26,10 +27,11 @@
 namespace App\Http\Controllers\Widgets;
 
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AlertsController extends WidgetController
 {
-    protected $title = 'Alerts';
+    protected string $name = 'alerts';
     protected $defaults = [
         'title' => null,
         'device' => null,
@@ -43,14 +45,10 @@ class AlertsController extends WidgetController
         'sort' => 1,
         'hidenavigation' => 0,
         'uncollapse_key_count' => 1,
+        'unreachable' => null,
     ];
 
-    public function getView(Request $request)
-    {
-        return view('widgets.alerts', $this->getSettings());
-    }
-
-    public function getSettingsView(Request $request)
+    public function getSettingsView(Request $request): View
     {
         $data = $this->getSettings(true);
         $data['severities'] = [
@@ -69,6 +67,7 @@ class AlertsController extends WidgetController
             'acknowledged' => '2',
             'worse' => '3',
             'better' => '4',
+            'changed' => '5',
         ];
 
         return view('widgets.settings.alerts', $data);

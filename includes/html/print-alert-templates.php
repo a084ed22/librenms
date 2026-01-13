@@ -22,8 +22,8 @@ require_once 'includes/html/modal/delete_alert_template.inc.php';
       </thead>
       <tbody>
 <?php
-$full_query = AlertTemplate::select('id', 'name', 'template')->get();
-
+$full_query = AlertTemplate::with('alert_rules')->select(['id', 'name', 'template'])->get();
+$templates = [];
 foreach ($full_query as $template) {
     $single_template = ['name' => $template->name,
         'template' => $template->template,
@@ -47,11 +47,11 @@ foreach ($full_query as $template) {
 $template_ids = array_column($templates, 'id');
 array_multisort($templates, SORT_ASC, $template_ids);
 foreach ($templates as $template) {
-    $old_template = strpos($template['template'], '{/if}') !== false ? '1' : '';
+    $old_template = str_contains((string) $template['template'], '{/if}') ? '1' : '';
     echo '<tr data-row-id="' . $template['id'] . '">
             <td>' . $template['id'] . '</td>
-            <td>' . $template['name'] . '</td>
-            <td>' . json_encode($template['alert_rules']) . '</td>
+            <td>' . htmlspecialchars((string) $template['name']) . '</td>
+            <td>' . htmlspecialchars(json_encode($template['alert_rules'])) . '</td>
             <td>' . $old_template . '</td>
           </tr>';
 }

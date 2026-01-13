@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +23,7 @@ $alert_states = [
     'acknowledged' => 2,
     'worse' => 3,
     'better' => 4,
+    'changed' => 5,
 ];
 
 $alert_severities = [
@@ -39,13 +41,13 @@ if (Auth::user()->hasGlobalAdmin()) {
 
 //if( defined('SHOW_SETTINGS') || empty($widget_settings) ) {
 if (defined('SHOW_SETTINGS')) {
-    $current_acknowledged = isset($widget_settings['acknowledged']) ? $widget_settings['acknowledged'] : '';
-    $current_fired = isset($widget_settings['fired']) ? $widget_settings['fired'] : '';
-    $current_severity = isset($widget_settings['severity']) ? $widget_settings['severity'] : '';
-    $current_state = isset($widget_settings['state']) ? $widget_settings['state'] : '';
-    $current_group = isset($widget_settings['group']) ? $widget_settings['group'] : '';
-    $current_proc = isset($widget_settings['proc']) ? $widget_settings['proc'] : '';
-    $current_sorting = isset($widget_settings['sort']) ? $widget_settings['sort'] : '';
+    $current_acknowledged = $widget_settings['acknowledged'] ?? '';
+    $current_fired = $widget_settings['fired'] ?? '';
+    $current_severity = $widget_settings['severity'] ?? '';
+    $current_state = $widget_settings['state'] ?? '';
+    $current_group = $widget_settings['group'] ?? '';
+    $current_proc = $widget_settings['proc'] ?? '';
+    $current_sorting = $widget_settings['sort'] ?? '';
 
     $common_output[] = '
 <form class="form" onsubmit="widget_settings(this); return false;">
@@ -165,14 +167,16 @@ if (defined('SHOW_SETTINGS')) {
 ';
 } else {
     $alert_id = $vars['alert_id'] ?? 0;
+    $rule_id = $vars['rule_id'] ?? '';
     $device_id = $device['device_id'];
-    $acknowledged = $widget_settings['acknowledged'];
-    $fired = $widget_settings['fired'];
-    $state = $widget_settings['state'];
-    $min_severity = $widget_settings['min_severity'];
-    $group = $widget_settings['group'];
-    $proc = $widget_settings['proc'];
-    $sort = $widget_settings['sort'];
+    $acknowledged = $widget_settings['acknowledged'] ?? '';
+    $fired = $widget_settings['fired'] ?? '';
+    $state = $widget_settings['state'] ?? '';
+    $min_severity = $widget_settings['min_severity'] ?? '';
+    $group = $widget_settings['group'] ?? '';
+    $proc = $widget_settings['proc'] ?? '';
+    $sort = $widget_settings['sort'] ?? '';
+    $unique_id ??= '';
 
     $title = 'Alerts';
 
@@ -217,7 +221,7 @@ if (defined('SHOW_SETTINGS')) {
 
     $widget_settings['title'] = $title;
 
-    $group = $widget_settings['group'];
+    $group = $widget_settings['group'] ?? '';
 
     $common_output[] = '
 <div class="row">
@@ -256,6 +260,10 @@ var alerts_grid = $("#alerts_' . $unique_id . '").bootgrid({
         return {
             id: "alerts",
 ';
+
+    if (is_numeric($rule_id)) {
+        $common_output[] = "rule_id: '$rule_id',\n";
+    }
     if (is_numeric($alert_id)) {
         $common_output[] = "alert_id: '$alert_id',\n";
     }

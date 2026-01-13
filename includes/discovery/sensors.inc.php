@@ -1,9 +1,8 @@
 <?php
 
-use LibreNMS\Config;
+use App\Facades\LibrenmsConfig;
+use LibreNMS\Enum\Sensor;
 use LibreNMS\OS;
-
-$valid['sensor'] = [];
 
 /** @var OS $os */
 $pre_cache = $os->preCache();
@@ -29,7 +28,7 @@ if ($device['os'] == 'linux') {
     include 'includes/discovery/sensors/rpigpiomonitor.inc.php';
 }
 
-if (strstr($device['hardware'], 'Dell')) {
+if (isset($device['hardware']) && strstr($device['hardware'], 'Dell')) {
     include 'includes/discovery/sensors/fanspeed/dell.inc.php';
     include 'includes/discovery/sensors/power/dell.inc.php';
     include 'includes/discovery/sensors/voltage/dell.inc.php';
@@ -37,7 +36,7 @@ if (strstr($device['hardware'], 'Dell')) {
     include 'includes/discovery/sensors/temperature/dell.inc.php';
 }
 
-if (strstr($device['hardware'], 'ProLiant')) {
+if (isset($device['hardware']) && strstr($device['hardware'], 'ProLiant')) {
     include 'includes/discovery/sensors/state/hp.inc.php';
 }
 
@@ -45,46 +44,10 @@ if ($device['os'] == 'gw-eydfa') {
     include 'includes/discovery/sensors/gw-eydfa.inc.php';
 }
 
-if ($device['os_group'] == 'printer') {
-    include 'includes/discovery/sensors/state/printer.inc.php';
-}
-
-$run_sensors = [
-    'airflow',
-    'current',
-    'charge',
-    'dbm',
-    'fanspeed',
-    'frequency',
-    'humidity',
-    'load',
-    'loss',
-    'power',
-    'power_consumed',
-    'power_factor',
-    'runtime',
-    'signal',
-    'state',
-    'count',
-    'temperature',
-    'tv_signal',
-    'voltage',
-    'snr',
-    'pressure',
-    'cooling',
-    'delay',
-    'quality_factor',
-    'chromatic_dispersion',
-    'ber',
-    'eer',
-    'waterflow',
-    'percent',
-];
-
 // filter submodules
-$run_sensors = array_intersect($run_sensors, Config::get('discovery_submodules.sensors', $run_sensors));
+$run_sensors = array_intersect(Sensor::values(), LibrenmsConfig::get('discovery_submodules.sensors', Sensor::values()));
 
-sensors($run_sensors, $os, $valid, $pre_cache);
+sensors($run_sensors, $os, $pre_cache);
 unset(
     $pre_cache,
     $run_sensors,

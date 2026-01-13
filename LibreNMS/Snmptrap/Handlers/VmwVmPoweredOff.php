@@ -1,4 +1,5 @@
 <?php
+
 /**
  * VmwVmPoweredOff.php
  *
@@ -31,7 +32,6 @@ use App\Models\Device;
 use LibreNMS\Enum\PowerState;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class VmwVmPoweredOff implements SnmptrapHandler
 {
@@ -47,11 +47,11 @@ class VmwVmPoweredOff implements SnmptrapHandler
     {
         $vmGuestName = VmwTrapUtil::getGuestName($trap);
 
+        /** @var \App\Models\Vminfo $vminfo */
         $vminfo = $device->vminfo()->where('vmwVmDisplayName', $vmGuestName)->first();
         $vminfo->vmwVmState = PowerState::OFF;
-
-        Log::event("Guest $vmGuestName was powered off", $device->device_id, 'trap', 2);
-
         $vminfo->save();
+
+        $trap->log("Guest $vmGuestName was powered off");
     }
 }

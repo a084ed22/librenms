@@ -1,6 +1,3 @@
-source: Support/1-Minute-Polling.md
-path: blob/master/doc/
-
 # 1-Minute Polling
 
 We now have support for polling data at intervals to fit your needs.
@@ -44,8 +41,8 @@ script runs on a per device basis or all devices at once.
 
 > The rrd files must be accessible from the server you run this script from.
 
-`./scripts/rrdstep.php`
+`lnms maintenance:rrd-step`
 
 This will provide the help information. To run it for localhost just run:
 
-`./scripts/rrdstep.php -h localhost`
+`lnms maintenance:rrd-step localhost`

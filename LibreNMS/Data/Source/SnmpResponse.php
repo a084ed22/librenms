@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SnmpResponse.php
  *
@@ -25,57 +26,47 @@
 
 namespace LibreNMS\Data\Source;
 
+use App\Facades\LibrenmsConfig;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use LibreNMS\Config;
+use LibreNMS\Util\Oid;
 use Log;
 
-class SnmpResponse
+class SnmpResponse implements \Stringable
 {
-    protected const DELIMITER = ' = ';
-    /**
-     * @var string
-     */
-    private $raw;
-    /**
-     * @var int
-     */
-    private $exitCode;
-    /**
-     * @var string
-     */
-    private $errorMessage;
-    /**
-     * @var string
-     */
-    private $stderr;
+    protected const KEY_VALUE_DELIMITER = ' = ';
+
+    public readonly string $raw;
+
+    private ?string $errorMessage = null;
+    private ?array $values = null;
 
     /**
      * Create a new response object filling with output from the net-snmp command.
      *
      * @param  string  $output
-     * @param  string  $errorOutput
+     * @param  string  $stderr
      * @param  int  $exitCode
      */
-    public function __construct(string $output, string $errorOutput = '', int $exitCode = 0)
+    public function __construct(string $output, public readonly string $stderr = '', public readonly int $exitCode = 0)
     {
-        $this->exitCode = $exitCode;
-        $this->raw = preg_replace('/Wrong Type \(should be .*\): /', '', $output);
-        $this->stderr = $errorOutput;
+        $this->raw = (string) preg_replace('/Wrong Type \(should be .*\): /', '', $output);
     }
 
-    public function isValid(): bool
+    public function isValid(bool $ignore_partial = false): bool
     {
         $this->errorMessage = '';
+        $raw = $ignore_partial ? $this->getRawWithoutBadLines() : $this->raw;
+
         // not checking exitCode because I think it may lead to false negatives
         $invalid = preg_match('/(Timeout: No Response from .*|Unknown user name|Authentication failure|Error: OID not increasing: .*)/', $this->stderr, $errors)
-            || empty($this->raw)
-            || preg_match('/(No Such Instance|No Such Object|No more variables left).*/', $this->raw, $errors);
+            || empty($raw)
+            || preg_match('/(No Such Instance|No Such Object|No more variables left).*/', $raw, $errors);
 
         if ($invalid) {
             $this->errorMessage = $errors[0] ?? 'Empty Output';
-            Log::debug(sprintf('SNMP query failed. Exit Code: %s Empty: %s Bad String: %s', $this->exitCode, var_export(empty($this->raw), true), $errors[0] ?? 'not found'));
+            Log::debug(sprintf('SNMP query failed. Exit Code: %s Empty: %s Bad String: %s', $this->exitCode, var_export(empty($raw), true), $errors[0] ?? 'not found'));
 
             return false;
         }
@@ -96,61 +87,149 @@ class SnmpResponse
     }
 
     /**
-     * Get the raw output returned by net-snmp
+     * Gets the first value of this response.
+     * If an oid or list of oids is given, return the first one found.
+     * If forceNumeric is set, force the search to use numeric oids even if textual oids are given
+     *
+     * @throws \LibreNMS\Exceptions\InvalidOidException
      */
-    public function raw(): string
+    public function value(array|string $oids = [], bool $forceNumeric = false): string
     {
-        return $this->raw;
-    }
+        $values = $this->values();
 
-    public function value(): string
-    {
-        return Arr::first($this->values(), null, '');
+        if (empty($oids)) {
+            return Arr::first($values, default: '');
+        }
+
+        $oids = Arr::wrap($oids);
+
+        // search for an exact match
+        foreach ($oids as $oid) {
+            if ($forceNumeric) {
+                // translate all to numeric to make it easier to match
+                $oid = Oid::of($oid)->toNumeric();
+            }
+
+            if (isset($values[$oid]) && $values[$oid] !== '') {
+                return $values[$oid];
+            }
+
+            // if this is a textual oid without an index, match the first one at any index
+            if (! preg_match('/[.[]\d+]?$/', (string) $oid)) {
+                foreach ($values as $key => $value) {
+                    if (preg_match('/^' . preg_quote((string) $oid, '/') . '[.[]/', (string) $key) && $value !== '') {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        // try to match table format
+        if (str_contains($this->raw, '[')) {
+            foreach ($oids as $oid) {
+                $dot_index_oid = preg_replace('/\.([^.]+)/', '[$1]', (string) $oid);
+                // if new oid is different and exists and is not an empty string
+                if ($dot_index_oid !== $oid && isset($values[$dot_index_oid]) && $values[$dot_index_oid] !== '') {
+                    return $values[$dot_index_oid];
+                }
+            }
+        }
+
+        return '';
     }
 
     public function values(): array
     {
-        $values = [];
+        if (isset($this->values)) {
+            return $this->values;
+        }
+
+        $this->values = [];
         $line = strtok($this->raw, PHP_EOL);
         while ($line !== false) {
-            if (Str::contains($line, ['at this OID', 'this MIB View', 'End of MIB'])) {
+            if (Str::contains($line, ['at this OID', 'this MIB View', 'End of MIB']) || str_ends_with($line, ' = NULL')) {
                 // these occur when we seek past the end of data, usually the end of the response, but grab the next line and continue
                 $line = strtok(PHP_EOL);
                 continue;
             }
 
-            $parts = explode(self::DELIMITER, $line, 2);
+            $parts = explode(self::KEY_VALUE_DELIMITER, $line, 2);
             if (count($parts) == 1) {
                 array_unshift($parts, '');
             }
             [$oid, $value] = $parts;
 
             $line = strtok(PHP_EOL); // get the next line and concatenate multi-line values
-            while ($line !== false && ! Str::contains($line, self::DELIMITER)) {
+            while ($line !== false && ! Str::contains($line, self::KEY_VALUE_DELIMITER)) {
                 $value .= PHP_EOL . $line;
                 $line = strtok(PHP_EOL);
             }
 
             // remove extra escapes
-            if (Config::get('snmp.unescape')) {
+            if (LibrenmsConfig::get('snmp.unescape')) {
                 $value = stripslashes($value);
             }
 
             if (Str::startsWith($value, '"') && Str::endsWith($value, '"')) {
                 // unformatted string from net-snmp, remove extra escapes
-                $values[$oid] = trim(stripslashes($value), "\" \n\r");
+                $this->values[$oid] = trim(stripslashes($value), "\" \n\r");
             } else {
-                $values[$oid] = trim($value);
+                $this->values[$oid] = trim($value);
             }
         }
 
-        return $values;
+        return $this->values;
     }
 
+    /**
+     * Create a key to value pair for an OID
+     * You may omit $oid if there is only one $oid in the walk
+     */
+    public function pluck(?string $oid = null): array
+    {
+        $output = [];
+        $oid ??= '[a-zA-Z0-9:.-]+';
+        $regex = "/^{$oid}[[.]([\d.[\]]+?)]?$/";
+
+        foreach ($this->values() as $key => $value) {
+            if (preg_match($regex, (string) $key, $matches)) {
+                $output_key = str_replace('][', '.', $matches[1]);
+                $output[$output_key] = $value;
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Group values by index as specified by $index_count
+     * Useful when dealing with numeric oids
+     * (By default this counts from right to left, using a negative index count will count from left to right)
+     */
+    public function groupByIndex(int $index_count = 1, array &$array = []): array
+    {
+        foreach ($this->values() as $oid => $value) {
+            $parts = $this->getOidParts(ltrim((string) $oid, '.')); // trim leftmost . so negative counts work as expected
+            $suffix = array_slice($parts, -$index_count);
+            $index = implode('.', $suffix);
+
+            $array[$index][$oid] = $value;
+        }
+
+        return $array;
+    }
+
+    /**
+     * Separate the index from the OID name
+     * Insert into array as index => oidName
+     */
     public function valuesByIndex(array &$array = []): array
     {
         foreach ($this->values() as $oid => $value) {
-            [$name, $index] = array_pad(explode('.', $oid, 2), 2, '');
+            $parts = $this->getOidParts($oid);
+            $name = array_shift($parts);
+            $index = implode('.', $parts);
+
             $array[$index][$name] = $value;
         }
 
@@ -160,14 +239,15 @@ class SnmpResponse
     public function table(int $group = 0, array &$array = []): array
     {
         foreach ($this->values() as $key => $value) {
-            preg_match_all('/([^[\]]+)/', $key, $parts);
-            $parts = $parts[1];
-            array_splice($parts, $group, 0, array_shift($parts)); // move the oid name to the correct depth
+            $parts = $this->getOidParts($key);
+
+            // move the oid name to the correct depth
+            array_splice($parts, $group, 0, array_shift($parts));
 
             // merge the parts into an array, creating keys if they don't exist
             $tmp = &$array;
             foreach ($parts as $part) {
-                $key = trim($part, '"');
+                $key = trim((string) $part, '"');
                 $tmp = &$tmp[$key];
             }
             $tmp = $value; // assign the value as the leaf
@@ -182,26 +262,23 @@ class SnmpResponse
      */
     public function mapTable(callable $callback): Collection
     {
-        if (! $this->isValid()) {
+        if (! $this->isValid(true)) {
             return new Collection;
         }
 
-        return collect($this->values())
-            ->map(function ($value, $oid) {
-                $parts = explode('[', rtrim($oid, ']'), 2);
+        $data = [];
+        foreach ($this->values() as $key => $value) {
+            $parts = $this->getOidParts($key);
+            $oid = array_shift($parts);
+            $data[implode('][', $parts)][$oid] = $value;
+        }
 
-                return [
-                    '_index' => $parts[1] ?? '',
-                    $parts[0] => $value,
-                ];
-            })
-            ->groupBy('_index')
-            ->map(function ($values, $index) use ($callback) {
-                $values = array_merge(...$values);
-                unset($values['_index']);
+        $return = new Collection;
+        foreach ($data as $index => $values) {
+            $return->push(call_user_func($callback, $values, ...explode('][', (string) $index)));
+        }
 
-                return call_user_func($callback, $values, ...explode('][', (string) $index));
-            });
+        return $return;
     }
 
     /**
@@ -210,5 +287,56 @@ class SnmpResponse
     public function getExitCode(): int
     {
         return $this->exitCode;
+    }
+
+    /**
+     * Filter bad lines from the raw output, examples:
+     * "No Such Instance currently exists at this OID"
+     * "No more variables left in this MIB View (It is past the end of the MIB tree)"
+     * oidName = NULL
+     */
+    public function getRawWithoutBadLines(): string
+    {
+        return (string) preg_replace([
+            '/^.*No Such (Instance currently exists|Object available on this agent at this OID).*$/m',
+            '/(\n[^\r\n]+No more variables left[^\r\n]+)+$/m',
+            '/^.* = NULL[\r\n]*$/',
+        ], '', $this->raw);
+    }
+
+    public function append(SnmpResponse $response): SnmpResponse
+    {
+        $newResponse = new static(
+            $this->raw . $response->raw,
+            $this->stderr . $response->stderr,
+            $this->exitCode ?: $response->exitCode,
+        );
+
+        $newResponse->errorMessage = $this->errorMessage ?: $response->errorMessage;
+
+        return $newResponse;
+    }
+
+    public function __toString(): string
+    {
+        return $this->raw;
+    }
+
+    private function getOidParts(string $key): array
+    {
+        // table
+        if (Str::contains($key, '[')) {
+            preg_match_all('/([^[\]]+)/', $key, $parts);
+
+            return $parts[1]; // get all group 1 matches
+        }
+
+        // regular oid
+        return explode('.', $key);
+    }
+
+    public function __sleep()
+    {
+        return ['raw', 'exitCode', 'stderr'];
     }
 }

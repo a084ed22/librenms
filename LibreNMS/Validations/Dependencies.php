@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Dependencies.php
  *
@@ -38,7 +39,7 @@ class Dependencies extends BaseValidation
      *
      * @param  Validator  $validator
      */
-    public function validate(Validator $validator)
+    public function validate(Validator $validator): void
     {
         if (EnvHelper::librenmsDocker()) {
             $validator->ok('Installed from the official Docker image; no Composer required');
@@ -47,7 +48,7 @@ class Dependencies extends BaseValidation
         }
 
         // if git is not installed, do not assume composer is either
-        if (! Git::repoPresent()) {
+        if (! Git::make()->repoPresent()) {
             $validator->ok('Installed from package; no Composer required');
 
             return;

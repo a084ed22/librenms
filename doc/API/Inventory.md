@@ -1,6 +1,3 @@
-source: API/Inventory.md
-path: blob/master/doc/
-
 ### `get_inventory`
 
 Retrieve the inventory for a device. If you call this without any
@@ -31,7 +28,7 @@ Input:
 Example:
 
 ```curl
-curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://librenms.org/api/v0/inventory/localhost?entPhysicalContainedIn=65536
+curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://foo.example/api/v0/inventory/localhost?entPhysicalContainedIn=65536
 ```
 
 Output:
@@ -80,7 +77,7 @@ Route: `/api/v0/inventory/:hostname/all`
 Example:
 
 ```curl
-curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://librenms.org/api/v0/inventory/localhost?entPhysicalContainedIn=65536
+curl -H 'X-Auth-Token: YOURAPITOKENHERE' https://foo.example/api/v0/inventory/localhost?entPhysicalContainedIn=65536
 ```
 
 Output:

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * HostUnreachableException.php
  *
@@ -29,9 +30,9 @@ class HostUnreachableException extends \Exception
 {
     protected $reasons = [];
 
-    public function __toString()
+    public function __toString(): string
     {
-        $string = __CLASS__ . ": [{$this->code}]: {$this->message}\n";
+        $string = self::class . ": [{$this->code}]: {$this->message}\n";
         foreach ($this->reasons as $reason) {
             $string .= "  $reason\n";
         }
@@ -42,11 +43,21 @@ class HostUnreachableException extends \Exception
     /**
      * Add additional reasons
      *
-     * @param  string  $message
+     * @param  string  $snmpVersion
+     * @param  string  $credentials
      */
-    public function addReason($message)
+    public function addReason(string $snmpVersion, string $credentials)
     {
-        $this->reasons[] = $message;
+        $vars = [
+            'version' => $snmpVersion,
+            'credentials' => $credentials,
+        ];
+
+        if ($snmpVersion == 'v3') {
+            $this->reasons[] = trans('exceptions.host_unreachable.no_reply_credentials', $vars);
+        } else {
+            $this->reasons[] = trans('exceptions.host_unreachable.no_reply_community', $vars);
+        }
     }
 
     /**

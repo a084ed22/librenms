@@ -1,4 +1,5 @@
 <?php
+
 /**
  * LocationsController.php
  *
@@ -35,7 +36,6 @@ class LocationController extends TableController
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function searchFields($request)
     {
@@ -44,7 +44,11 @@ class LocationController extends TableController
 
     protected function sortFields($request)
     {
-        return ['location', 'devices', 'network', 'servers', 'firewalls', 'down'];
+        return [
+            'location',
+            'devices' => 'devices_count',
+            'down' => 'down_count',
+        ];
     }
 
     /**
@@ -55,19 +59,10 @@ class LocationController extends TableController
      */
     public function baseQuery($request)
     {
-        // joins are needed for device count sorts
-        $sort = $request->get('sort');
-        $key = key($sort);
-        $join = $this->getJoinQuery($key);
-
-        if ($join) {
-            return Location::hasAccess($request->user())
-                ->select(['id', 'location', 'lat', 'lng', \DB::raw("COUNT(device_id) AS `$key`")])
-                ->leftJoin('devices', $join)
-                ->groupBy(['id', 'location', 'lat', 'lng']);
-        }
-
-        return Location::hasAccess($request->user());
+        return Location::hasAccess($request->user())->withCount([
+            'devices',
+            'devices as down_count' => fn ($q) => (new Device)->scopeIsDown($q),
+        ]);
     }
 
     /**
@@ -81,43 +76,9 @@ class LocationController extends TableController
             'location' => $location->location,
             'lat' => $location->lat,
             'lng' => $location->lng,
-            'down' => $location->devices()->isDown()->count(),
-            'devices' => $location->devices()->count(),
-            'network' => $location->devices()->where('type', 'network')->count(),
-            'servers' => $location->devices()->where('type', 'server')->count(),
-            'firewalls' => $location->devices()->where('type', 'firewall')->count(),
+            'devices' => $location->devices_count,
+            /** @phpstan-ignore property.notFound (dynamic property from withCount) */
+            'down' => $location->down_count,
         ];
-    }
-
-    private function getJoinQuery($field)
-    {
-        switch ($field) {
-            case 'devices':
-                return function ($query) {
-                    $query->on('devices.location_id', 'locations.id');
-                };
-            case 'down':
-                return function ($query) {
-                    $query->on('devices.location_id', 'locations.id');
-                    (new Device)->scopeIsDown($query);
-                };
-            case 'network':
-                return function ($query) {
-                    $query->on('devices.location_id', 'locations.id')
-                        ->where('devices.type', 'network');
-                };
-            case 'servers':
-                return function ($query) {
-                    $query->on('devices.location_id', 'locations.id')
-                        ->where('devices.type', 'server');
-                };
-            case 'firewalls':
-                return function ($query) {
-                    $query->on('devices.location_id', 'locations.id')
-                        ->where('devices.type', 'firewall');
-                };
-            default:
-                return null;
-        }
     }
 }

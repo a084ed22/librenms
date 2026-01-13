@@ -1,16 +1,15 @@
-source: Developing/os/Initial-Detection.md
-path: blob/master/doc/
-
 This document will provide the information you should need to add
 basic detection for a new OS.
 
 ### Discovery
 
-Discovery is now all done by yaml files, you do not and should not
-create a php file for discovery.
+OS discovery is how LibreNMS detects which OS should be used for a device.
+Generally detection should use sysObjectID or sysDescr, but you can also
+snmpget an oid and check for a value.  snmpget is discouraged because it slows
+down all os detections, not just the added os.
 
-Create the new OS file which should be called
-`includes/definitions/pulse.yaml`. Here is a working example:
+To begin, create the new OS file which should be called
+`resources/definitions/os_detection/pulse.yaml`. Here is a working example:
 
 ```yaml
 os: pulse
@@ -42,6 +41,14 @@ is the preferred method for detection.  Other options are available:
   matches one of the regex statements under this item
 - `snmpget` Do not use this unless none of the other methods
   work. Fetch an oid and compare it against a value.
+```yaml
+discovery:
+    -
+      snmpget:
+        - oid: MIB-NAME::someoid
+        - op: <["=","!=","==","!==","<=",">=","<",">","starts","ends","contains","regex","not_starts","not_ends","not_contains","not_regex","in_array","not_in_array","exists"]>
+        - value: <'string' | boolean>
+```
 - `_except` You can add this to any of the above to exclude that
   element. As an example:
 
@@ -74,25 +81,29 @@ look in for MIBs. An array is not accepted, only one directory may be specified.
 mib_dir: juniper
 ```
 
+We would recommend that only discovery or poller modules that cause issues for a device be disabled.
+
+In general, Discovery will run first and if it doesn't discover any data then polling will not occur.
+
+`discovery_modules`: This is the list of discovery modules to either
+enable (1) or disable (0). Check `resources/definitions/config_definitions.json` to see
+which modules are enabled/disabled by default.
+
+```yaml
+discovery_modules:
+     cisco-cef: true
+     slas: true
+     cisco-mac-accounting: false
+```
+
 `poller_modules`: This is a list of poller modules to either enable
-(1) or disable (0). Check `misc/config_definitions.json` to see which
+(1) or disable (0). Check `resources/definitions/config_definitions.json` to see which
 modules are enabled/disabled by default.
 
 ```yaml
 poller_modules:
     cisco-ace-serverfarms: false
     cisco-ace-loadbalancer: false
-```
-
-`discovery_modules`: This is the list of discovery modules to either
-enable (1) or disable (0). Check `misc/config_definitions.json` to see
-which modules are enabled/disabled by default.
-
-```yaml
-discovery_modules:
-     cisco-cef: true
-     cisco-sla: true
-     cisco-mac-accounting: false
 ```
 
 ##### Discovery Logic
@@ -141,7 +152,7 @@ So, considering the example:
 #### OS discovery
 
 OS discovery collects additional standardized data about the OS.  These are specified in
-the discovery yaml `includes/definitions/discovery/<os>.yaml` or `LibreNMS/OS/<os>.php` if
+the discovery yaml `resources/definitions/os_discovery/<os>.yaml` or `LibreNMS/OS/<os>.php` if
 more complex collection is required.
 
 - `version` The version of the OS running on the device.
@@ -155,6 +166,7 @@ more complex collection is required.
 - `<field>` specify an oid or list of oids to attempt to pull the data from, the first non-empty response will be used
 - `<field>_regex` parse the value out of the returned oid data, must use a named group
 - `<field>_template` combine multiple oid results together to create a final string value.  The result is trimmed.
+- `<field>_replace` An array of replacements ['search regex', 'replace'] or regex to remove
 - `hardware_mib` MIB used to translate sysObjectID to get hardware. hardware_regex can process the result.
 
 ```yaml
@@ -176,10 +188,10 @@ modules:
 ```php
 public function discoverOS(\App\Models\Device $device): void
 {
-    $info = snmp_getnext_multi($this->getDeviceArray(), ['enclosureModel', 'enclosureSerialNum', 'entPhysicalFirmwareRev'], '-OQUs', 'NAS-MIB:ENTITY-MIB');
-    $device->version = $info['entPhysicalFirmwareRev'];
-    $device->hardware = $info['enclosureModel'];
-    $device->serial = $info['enclosureSerialNum'];
+    $response = SnmpQuery::next(['NAS-MIB::enclosureModel', 'NAS-MIB::enclosureSerialNum', 'ENTITY-MIB::entPhysicalFirmwareRev']);
+    $device->version = $response->value('ENTITY-MIB::entPhysicalFirmwareRev');
+    $device->hardware = $response->value('NAS-MIB::enclosureModel');
+    $device->serial = $response->value('NAS-MIB::enclosureSerialNum');
 }
 ```
 
@@ -234,13 +246,13 @@ is also an [online version](https://jakearchibald.github.io/svgomg/).
 Discovery
 
 ```bash
-./discovery.php -d -h HOSTNAME
+lnms device:discover -vv HOSTNAME
 ```
 
 Polling
 
 ```bash
-./poller.php -h HOSTNAME
+lnms device:poll HOSTNAME
 ```
 
 At this step we should see all the values retrieved in LibreNMS.
@@ -251,5 +263,5 @@ such, if you do not get expected behaviour when completing the final
 check above, try removing the cache file first:
 
 ```bash
-rm -f cache/os_defs.cache
+lnms config:clear
 ```

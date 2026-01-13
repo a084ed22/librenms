@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Aos6DoSTrap.php
  *
@@ -33,7 +34,6 @@ namespace LibreNMS\Snmptrap\Handlers;
 use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class Aos6DoSTrap implements SnmptrapHandler
 {
@@ -51,8 +51,8 @@ class Aos6DoSTrap implements SnmptrapHandler
         $detected = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSDetected'));
         $ip = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSIp'));
         $slot = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSSlot'));
-        $port = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSPort'));
+//        $port = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSPort')); // unused
         $mac = $trap->getOidData($trap->findOid('ALCATEL-IND1-IP-MIB::alaDoSMac'));
-        Log::event("There has been detected a Denial of Service (DoS) attack. Type of the attack is: $type. Number of attacks are: $detected. Slot where was received is: $slot. Source IP is: $ip. Mac address is: $mac.", $device->device_id, 'trap', 2);
+        $trap->log("There has been detected a Denial of Service (DoS) attack. Type of the attack is: $type. Number of attacks are: $detected. Slot where was received is: $slot. Source IP is: $ip. Mac address is: $mac.");
     }
 }

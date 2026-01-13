@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Allied.php
  *
@@ -73,7 +74,7 @@ class Allied extends OS implements OSDiscovery
           sysDescr.0 = STRING: "Allied Telesyn AT-8948 version 2.7.4-02 22-Aug-2005"
           sysDescr.0 = STRING: "Allied Telesis AT-8624T/2M version 2.9.1-13 11-Dec-2007"
         Use sysDescr to get Hardware, SW version, and Serial*/
-        [$a, $b, $c, $d, $e, $f] = array_pad(explode(' ', $this->getDeviceArray()['sysDescr']), 6, null);
+        [$a, $b, $c, $d, $e, $f] = array_pad(explode(' ', (string) $this->getDeviceArray()['sysDescr']), 6, null);
         if (! $hardware && ! $version) {
             if ($a == 'Allied' && $d == 'version') {
                 $version = $e;
@@ -81,14 +82,14 @@ class Allied extends OS implements OSDiscovery
                 $hardware = $c;
                 $serial = snmp_get($this->getDeviceArray(), 'arBoardSerialNumber.1', '-OsvQU', 'AT-INTERFACES-MIB');
 
-            //  sysDescr.0 = STRING: "CentreCOM 9924Ts, version 3.2.1-04, built 08-Sep-2009"
+                //  sysDescr.0 = STRING: "CentreCOM 9924Ts, version 3.2.1-04, built 08-Sep-2009"
             } elseif ($a == 'CentreCOM' && $c == 'version') {
                 $version = $d;
                 $features = $f;
                 $hardware = snmp_get($this->getDeviceArray(), 'arBoardName.1', '-OsvQU', 'AT-INTERFACES-MIB');
                 $serial = snmp_get($this->getDeviceArray(), 'arBoardSerialNumber.1', '-OsvQU', 'AT-INTERFACES-MIB');
 
-            //AT-GS950/24 Gigabit Ethernet WebSmart Switch
+                //AT-GS950/24 Gigabit Ethernet WebSmart Switch
                 //Also requires system description as no OIDs provide $hardware
             } elseif ($d == 'WebSmart' && $e == 'Switch') {
                 $version = snmp_get($this->getDeviceArray(), 'swhub.167.81.1.3.0', '-OsvQU', 'AtiL2-MIB');
@@ -101,9 +102,9 @@ class Allied extends OS implements OSDiscovery
             $hardware = $e;
         }
 
-        $device->version = str_replace(['"', ','], '', $version ?? null);
-        $device->features = str_replace('"', '', $features ?? null);
-        $device->hardware = str_replace('"', '', $hardware ?? null);
+        $device->version = isset($version) ? str_replace(['"', ','], '', $version) : null;
+        $device->features = isset($features) ? str_replace('"', '', $features) : null;
+        $device->hardware = isset($hardware) ? str_replace('"', '', $hardware) : null;
         $device->serial = $serial ?? null;
     }
 }

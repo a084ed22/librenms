@@ -1,6 +1,6 @@
 <?php
 
-use LibreNMS\Config;
+use App\Facades\LibrenmsConfig;
 use LibreNMS\RRD\RrdDefinition;
 
 $ipmi_rows = dbFetchRows("SELECT * FROM sensors WHERE device_id = ? AND poller_type='ipmi'", [$device['device_id']]);
@@ -8,35 +8,50 @@ $ipmi_rows = dbFetchRows("SELECT * FROM sensors WHERE device_id = ? AND poller_t
 if (is_array($ipmi_rows)) {
     d_echo($ipmi_rows);
 
-    if (isset($device['attribs']['ipmi_hostname'])) {
-        $ipmi['host'] = $device['attribs']['ipmi_hostname'];
-        $ipmi['port'] = filter_var($device['attribs']['ipmi_port'], FILTER_VALIDATE_INT) ? $device['attribs']['ipmi_port'] : '623';
-        $ipmi['user'] = $device['attribs']['ipmi_username'];
-        $ipmi['password'] = $device['attribs']['ipmi_password'];
-        $ipmi['type'] = $device['attribs']['ipmi_type'];
+    if ($ipmi_hostname = DeviceCache::getPrimary()->getAttrib('ipmi_hostname')) {
+        $ipmi['host'] = $ipmi_hostname;
+        $ipmi_port = DeviceCache::getPrimary()->getAttrib('ipmi_port');
+        $ipmi['port'] = filter_var($ipmi_port, FILTER_VALIDATE_INT) ? $ipmi_port : '623';
+        $ipmi['user'] = DeviceCache::getPrimary()->getAttrib('ipmi_username');
+        $ipmi['password'] = DeviceCache::getPrimary()->getAttrib('ipmi_password');
+        $ipmi['kg_key'] = DeviceCache::getPrimary()->getAttrib('ipmi_kg_key');
+        $ipmi['ciphersuite'] = DeviceCache::getPrimary()->getAttrib('ipmi_ciphersuite');
+        $ipmi_timeout = DeviceCache::getPrimary()->getAttrib('ipmi_timeout');
+        $ipmi['timeout'] = filter_var($ipmi_timeout, FILTER_VALIDATE_INT) ? $ipmi_timeout : '3';
+        $ipmi['type'] = DeviceCache::getPrimary()->getAttrib('ipmi_type');
 
         echo 'Fetching IPMI sensor data...';
 
-        $cmd = [Config::get('ipmitool', 'ipmitool')];
-        if (Config::get('own_hostname') != $device['hostname'] || $ipmi['host'] != 'localhost') {
-            array_push($cmd, '-H', $ipmi['host'], '-U', $ipmi['user'], '-P', $ipmi['password'], '-L', 'USER', '-p', $ipmi['port']);
+        $cmd = [LibrenmsConfig::get('ipmitool', 'ipmitool')];
+        if (LibrenmsConfig::get('own_hostname') != $device['hostname'] || $ipmi['host'] != 'localhost') {
+            if (empty($ipmi['kg_key']) || is_null($ipmi['kg_key'])) {
+                array_push($cmd, '-H', $ipmi['host'], '-U', $ipmi['user'], '-P', $ipmi['password'], '-L', 'USER', '-p', $ipmi['port']);
+            } else {
+                array_push($cmd, '-H', $ipmi['host'], '-U', $ipmi['user'], '-P', $ipmi['password'], '-L', 'USER', '-p', $ipmi['port'], '-y', $ipmi['kg_key']);
+            }
+            if (! empty($ipmi['ciphersuite'])) {
+                array_push($cmd, '-C', $ipmi['ciphersuite']);
+            }
+            if (! empty($ipmi['timeout'])) {
+                array_push($cmd, '-N', $ipmi['timeout']);
+            }
         }
 
         // Check to see if we know which IPMI interface to use
         // so we dont use wrong arguments for ipmitool
         if ($ipmi['type'] != '') {
             array_push($cmd, '-I', $ipmi['type'], '-c', 'sdr');
-            $results = external_exec($cmd);
+            $results = trim((string) external_exec($cmd));
             d_echo($results);
             echo " done.\n";
         } else {
             echo " type not yet discovered.\n";
         }
 
-        foreach (explode("\n", $results) as $row) {
+        foreach (explode("\n", (string) $results) as $row) {
             [$desc, $value, $type, $status] = explode(',', $row);
             $desc = trim($desc, ' ');
-            $ipmi_unit_type = Config::get("ipmi_unit.$type");
+            $ipmi_unit_type = LibrenmsConfig::get("ipmi_unit.$type");
 
             // SDR records can include hexadecimal values, identified by an h
             // suffix (like "93h" for 0x93). Convert them to decimal.
@@ -71,7 +86,7 @@ if (is_array($ipmi_rows)) {
                 'rrd_name' => $rrd_name,
                 'rrd_def' => $rrd_def,
             ];
-            data_update($device, 'ipmi', $tags, $fields);
+            app('Datastore')->put($device, 'ipmi', $tags, $fields);
 
             // FIXME warnings in event & mail not done here yet!
             dbUpdate(

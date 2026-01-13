@@ -1,4 +1,5 @@
 <?php
+
 /*
  * YamlOSDiscovery.php
  *
@@ -29,8 +30,10 @@ use App\Models\Device;
 use App\Models\Location;
 use App\View\SimpleTemplate;
 use Illuminate\Support\Arr;
+use LibreNMS\Util\Oid;
 use LibreNMS\Util\StringHelpers;
 use Log;
+use SnmpQuery;
 
 trait YamlOSDiscovery
 {
@@ -39,6 +42,7 @@ trait YamlOSDiscovery
         'hardware',
         'features',
         'serial',
+        'sysName',
     ];
 
     private $osFields = [
@@ -46,6 +50,7 @@ trait YamlOSDiscovery
         'hardware',
         'features',
         'serial',
+        'sysName',
     ];
 
     public function discoverOS(Device $device): void
@@ -57,12 +62,16 @@ trait YamlOSDiscovery
         }
 
         if (isset($os_yaml['hardware_mib'])) {
-            $this->translateSysObjectID($os_yaml['hardware_mib'], $os_yaml['hardware_regex'] ?? null);
+            $device->hardware = SnmpQuery::mibs([$os_yaml['hardware_mib']])->hideMib()->translate($device->sysObjectID);
+
+            if (! empty($os_yaml['hardware_regex'])) {
+                $this->parseRegex($os_yaml['hardware_regex'], $device->hardware);
+            }
         }
 
         $oids = Arr::only($os_yaml, $this->osFields);
         $fetch_oids = array_unique(Arr::flatten($oids));
-        $numeric = $this->isNumeric($fetch_oids);
+        $numeric = Oid::hasNumeric($fetch_oids);
         $data = $this->fetch($fetch_oids, $numeric);
 
         Log::debug('Yaml OS data:', $data);
@@ -81,6 +90,8 @@ trait YamlOSDiscovery
                     : $value;
             }
         }
+
+        $this->replaceStringsInFields($device, $os_yaml);
     }
 
     public function fetchLocation(): Location
@@ -91,7 +102,7 @@ trait YamlOSDiscovery
         $lng = $os_yaml['long'] ?? null;
 
         $oids = array_filter([$name, $lat, $lng]);
-        $numeric = $this->isNumeric($oids);
+        $numeric = Oid::hasNumeric($oids);
         $data = $this->fetch($oids, $numeric);
 
         Log::debug('Yaml location data:', $data);
@@ -109,7 +120,10 @@ trait YamlOSDiscovery
     {
         foreach (Arr::wrap($oids) as $oid) {
             // translate all to numeric to make it easier to match
-            $oid = ($numeric && ! oid_is_numeric($oid)) ? snmp_translate($oid, 'ALL', null, null, $this->getDeviceArray()) : $oid;
+            if ($numeric) {
+                $oid = Oid::of($oid)->toNumeric();
+            }
+
             if (! empty($data[$oid])) {
                 return $data[$oid];
             }
@@ -123,7 +137,7 @@ trait YamlOSDiscovery
         $device = $this->getDevice();
 
         foreach (Arr::wrap($regexes) as $regex) {
-            if (preg_match($regex, $subject, $matches)) {
+            if (preg_match($regex, (string) $subject, $matches)) {
                 foreach ($this->osDbFields as $field) {
                     if (isset($matches[$field])) {
                         $device->$field = $matches[$field];
@@ -133,29 +147,28 @@ trait YamlOSDiscovery
         }
     }
 
-    private function translateSysObjectID($mib, $regex)
-    {
-        $device = $this->getDevice();
-        $device->hardware = snmp_translate($device->sysObjectID, $mib, null, '-Os', $this->getDeviceArray());
-
-        if ($regex) {
-            $this->parseRegex($regex, $device->hardware);
-        }
-    }
-
     private function fetch(array $oids, $numeric)
     {
         return snmp_get_multi_oid($this->getDeviceArray(), $oids, $numeric ? '-OUQn' : '-OUQ');
     }
 
-    private function isNumeric($oids)
+    private function replaceStringsInFields(Device $device, array $os_yaml): void
     {
-        foreach ($oids as $oid) {
-            if (oid_is_numeric($oid)) {
-                return true;
+        foreach ($this->osFields as $field) {
+            foreach ($os_yaml["{$field}_replace"] ?? [] as $replacements) {
+                $search = $replacements;
+                $replacement = '';
+
+                // check for a given replacement string (otherwise, remove)
+                if (is_array($replacements) && count($replacements) == 2) {
+                    $search = $replacements[0];
+                    $replacement = $replacements[1];
+                }
+
+                if (isset($device->$field)) {
+                    $device->$field = preg_replace($search, (string) $replacement, $device->$field);
+                }
             }
         }
-
-        return false;
     }
 }

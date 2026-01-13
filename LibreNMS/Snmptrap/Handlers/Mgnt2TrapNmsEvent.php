@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Mgnt2TrapNMSEvent.php
  *
@@ -30,7 +31,6 @@ namespace LibreNMS\Snmptrap\Handlers;
 use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class Mgnt2TrapNmsEvent implements SnmptrapHandler
 {
@@ -62,6 +62,6 @@ class Mgnt2TrapNmsEvent implements SnmptrapHandler
         } else {
             $msg = "Event on slot $slot, $sourcePm Reason: $logReason";
         }
-        Log::event($msg, $device->device_id, 'trap', 2);
+        $trap->log($msg);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * EnvTest.php
  *
@@ -28,9 +29,9 @@ namespace LibreNMS\Tests\Unit\Util;
 use LibreNMS\Tests\TestCase;
 use LibreNMS\Util\EnvHelper;
 
-class EnvTest extends TestCase
+final class EnvTest extends TestCase
 {
-    public function testParseArray()
+    public function testParseArray(): void
     {
         putenv('PARSETEST=one,two');
         $this->assertSame(['one', 'two'], EnvHelper::parseArray('PARSETEST'), 'Could not parse simple array');
@@ -49,7 +50,7 @@ class EnvTest extends TestCase
         putenv('PARSETEST');
     }
 
-    public function testSetEnv()
+    public function testSetEnv(): void
     {
         $this->assertEquals("ONE=one\nTWO=2\$\nTHREE=\"space space\"\n", EnvHelper::setEnv("ONE=one\nTWO=\n", [
             'ONE' => 'zero',

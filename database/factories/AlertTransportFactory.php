@@ -2,19 +2,16 @@
 
 namespace Database\Factories;
 
-use App\Models\AlertTransport;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use LibreNMS\Alert\Transport;
 
+/** @extends Factory<\App\Models\AlertTransport> */
 class AlertTransportFactory extends Factory
 {
-    protected $model = AlertTransport::class;
-
     public function definition(): array
     {
         return [
             'transport_name' => $this->faker->text(30),
-            'transport_type' => $this->faker->randomElement(Transport::list()),
+            'transport_type' => 'mail',
             'is_default' => 0,
             'transport_config' => '',
         ];

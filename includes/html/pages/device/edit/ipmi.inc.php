@@ -6,6 +6,9 @@ if ($_POST['editing']) {
         $ipmi_port = (int) $_POST['ipmi_port'];
         $ipmi_username = $_POST['ipmi_username'];
         $ipmi_password = $_POST['ipmi_password'];
+        $ipmi_kg_key = $_POST['ipmi_kg_key'];
+        $ipmi_ciphersuite = $_POST['ipmi_ciphersuite'];
+        $ipmi_timeout = $_POST['ipmi_timeout'];
 
         if ($ipmi_hostname != '') {
             set_dev_attrib($device, 'ipmi_hostname', $ipmi_hostname);
@@ -13,7 +16,7 @@ if ($_POST['editing']) {
             del_dev_attrib($device, 'ipmi_hostname');
         }
 
-        if ($ipmi_port != '') {
+        if ($ipmi_port != 0) {
             set_dev_attrib($device, 'ipmi_port', $ipmi_port);
         } else {
             set_dev_attrib($device, 'ipmi_port', '623'); // Default port
@@ -31,6 +34,24 @@ if ($_POST['editing']) {
             del_dev_attrib($device, 'ipmi_password');
         }
 
+        if ($ipmi_kg_key != '') {
+            set_dev_attrib($device, 'ipmi_kg_key', $ipmi_kg_key);
+        } else {
+            del_dev_attrib($device, 'ipmi_kg_key');
+        }
+
+        if ($ipmi_ciphersuite != '') {
+            set_dev_attrib($device, 'ipmi_ciphersuite', $ipmi_ciphersuite);
+        } else {
+            del_dev_attrib($device, 'ipmi_ciphersuite');
+        }
+
+        if ($ipmi_timeout != '') {
+            set_dev_attrib($device, 'ipmi_timeout', $ipmi_timeout);
+        } else {
+            del_dev_attrib($device, 'ipmi_timeout');
+        }
+
         $update_message = 'Device IPMI data updated.';
         $updated = 1;
     } else {
@@ -46,33 +67,49 @@ if ($updated && $update_message) {
 
 ?>
 
-<h3>IPMI settings</h3>
-
 <form id="edit" name="edit" method="post" action="" role="form" class="form-horizontal">
 <?php echo csrf_field() ?>
 <input type="hidden" name="editing" value="yes">
   <div class="form-group">
     <label for="ipmi_hostname" class="col-sm-2 control-label">IPMI/BMC Hostname</label>
     <div class="col-sm-6">
-      <input id="ipmi_hostname" name="ipmi_hostname" class="form-control" value="<?php echo get_dev_attrib($device, 'ipmi_hostname'); ?>" />
+      <input id="ipmi_hostname" name="ipmi_hostname" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_hostname')); ?>" />
     </div>
   </div>
   <div class="form-group">
     <label for="ipmi_port" class="col-sm-2 control-label">IPMI/BMC Port</label>
     <div class="col-sm-6">
-      <input id="ipmi_port" name="ipmi_port" class="form-control" value="<?php echo get_dev_attrib($device, 'ipmi_port'); ?>" placeholder="623" />
+      <input id="ipmi_port" name="ipmi_port" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_port')); ?>" placeholder="623" />
     </div>
   </div>
   <div class="form-group">
     <label for="ipmi_username" class="col-sm-2 control-label">IPMI/BMC Username</label>
     <div class="col-sm-6">
-      <input id="ipmi_username" name="ipmi_username" class="form-control" value="<?php echo get_dev_attrib($device, 'ipmi_username'); ?>" />
+      <input id="ipmi_username" name="ipmi_username" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_username')); ?>" />
     </div>
   </div>
   <div class="form-group">
     <label for="impi_password" class="col-sm-2 control-label">IPMI/BMC Password</label>
     <div class="col-sm-6">
-      <input id="ipmi_password" name="ipmi_password" type="password" class="form-control" value="<?php echo get_dev_attrib($device, 'ipmi_password'); ?>" />
+      <input id="ipmi_password" name="ipmi_password" type="password" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_password')); ?>" />
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="ipmi_kg_key" class="col-sm-2 control-label">IPMIv2 Kg key</label>
+    <div class="col-sm-6">
+      <input id="ipmi_kg_key" name="ipmi_kg_key" type="password" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_kg_key')); ?>" placeholder="A0FE1A760B304... (Leave blank if none)" />
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="ipmi_ciphersuite" class="col-sm-2 control-label">IPMI Cipher suite</label>
+    <div class="col-sm-6">
+      <input id="ipmi_ciphersuite" name="ipmi_ciphersuite" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_ciphersuite')); ?>" />
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="ipmi_timeout" class="col-sm-2 control-label">IPMI Timeout</label>
+    <div class="col-sm-6">
+      <input id="ipmi_timeout" name="ipmi_timeout" class="form-control" value="<?php echo htmlentities((string) get_dev_attrib($device, 'ipmi_timeout')); ?>" placeholder="3" />
     </div>
   </div>
   <div class="row">

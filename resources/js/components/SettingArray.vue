@@ -51,7 +51,7 @@
 </template>
 
 <script>
-    import BaseSetting from "./BaseSetting";
+    import BaseSetting from "./BaseSetting.vue";
     import draggable from 'vuedraggable'
 
     export default {
@@ -62,7 +62,7 @@
         },
         data() {
             return {
-                localList: this.value,
+                localList: this.value ?? [],
                 newItem: ""
             }
         },

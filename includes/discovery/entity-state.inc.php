@@ -1,4 +1,5 @@
 <?php
+
 /**
  * entity-state.inc.php
  *
@@ -43,13 +44,13 @@ if (! empty($entPhysical)) {
             if (empty($state['entStateLastChanged'])) {
                 $state['entStateLastChanged'] = null;
             } else {
-                [$date, $time, $tz] = explode(',', $state['entStateLastChanged']);
+                [$date, $time, $tz] = explode(',', (string) $state['entStateLastChanged']);
                 try {
                     $lastChanged = new DateTime("$date $time", new DateTimeZone($tz));
                     $state['entStateLastChanged'] = $lastChanged
                         ->setTimezone(new DateTimeZone(date_default_timezone_get()))
                         ->format('Y-m-d H:i:s');
-                } catch (Exception $e) {
+                } catch (Exception) {
                     // no update
                 }
             }
@@ -60,7 +61,7 @@ if (! empty($entPhysical)) {
 
                 if (! empty($update)) {
                     if (array_key_exists('entStateLastChanged', $update) && is_null($update['entStateLastChanged'])) {
-                        $update['entStateLastChanged'] = ['NULL'];
+                        $update['entStateLastChanged'] = null;
                     }
 
                     dbUpdate($update, 'entityState', 'entity_state_id=?', [$db_state['entity_state_id']]);

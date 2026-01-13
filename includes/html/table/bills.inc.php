@@ -1,6 +1,9 @@
 <?php
 
 // Calculate filters
+use LibreNMS\Billing;
+use LibreNMS\Util\Number;
+
 $prev = ! empty($vars['period']) && ($vars['period'] == 'prev');
 $wheres = [];
 $param = [];
@@ -52,7 +55,7 @@ if (! Auth::user()->hasGlobalRead()) {
     $param[] = Auth::id();
 }
 
-if (sizeof($wheres) > 0) {
+if (count($wheres) > 0) {
     $query .= 'WHERE ' . implode(' AND ', $wheres) . "\n";
 }
 $orderby = 'ORDER BY bills.bill_name';
@@ -69,7 +72,7 @@ if (! isset($sort) || empty($sort)) {
 $sql .= "\nORDER BY $sort";
 
 if (isset($current)) {
-    $limit_low = (($current * $rowCount) - ($rowCount));
+    $limit_low = (($current * $rowCount) - $rowCount);
     $limit_high = $rowCount;
 }
 
@@ -82,17 +85,17 @@ foreach (dbFetchRows($sql, $param) as $bill) {
         $datefrom = $bill['bill_datefrom'];
         $dateto = $bill['bill_dateto'];
     } else {
-        $day_data = getDates($bill['bill_day']);
+        $day_data = Billing::getDates($bill['bill_day'], 0);
         $datefrom = $day_data['0'];
         $dateto = $day_data['1'];
     }
-    $rate_95th = \LibreNMS\Util\Number::formatSi($bill['rate_95th'], 2, 3, '') . 'bps';
+    $rate_95th = Number::formatSi($bill['rate_95th'], 2, 0, '') . 'bps';
     $dir_95th = $bill['dir_95th'];
-    $total_data = format_bytes_billing($bill['total_data']);
+    $total_data = Billing::formatBytes($bill['total_data']);
     $rate_average = $bill['rate_average'];
     $url = \LibreNMS\Util\Url::generate(['page' => 'bill', 'bill_id' => $bill['bill_id']]);
-    $used95th = \LibreNMS\Util\Number::formatSi($bill['rate_95th'], 2, 3, '') . 'bps';
-    $notes = $bill['bill_notes'];
+    $used95th = Number::formatSi($bill['rate_95th'], 2, 0, '') . 'bps';
+    $notes = htmlentities((string) $bill['bill_notes']);
 
     if ($prev) {
         $percent = $bill['bill_percent'];
@@ -100,36 +103,36 @@ foreach (dbFetchRows($sql, $param) as $bill) {
     } else {
     }
 
-    if (strtolower($bill['bill_type']) == 'cdr') {
+    if (strtolower((string) $bill['bill_type']) == 'cdr') {
         $type = 'CDR';
-        $allowed = \LibreNMS\Util\Number::formatSi($bill['bill_allowed'], 2, 3, '') . 'bps';
-        $in = \LibreNMS\Util\Number::formatSi($bill['rate_95th_in'], 2, 3, '') . 'bps';
-        $out = \LibreNMS\Util\Number::formatSi($bill['rate_95th_out'], 2, 3, '') . 'bps';
+        $allowed = Number::formatSi($bill['bill_allowed'], 2, 0, '') . 'bps';
+        $in = Number::formatSi($bill['rate_95th_in'], 2, 0, '') . 'bps';
+        $out = Number::formatSi($bill['rate_95th_out'], 2, 0, '') . 'bps';
         if (! $prev) {
-            $percent = round((($bill['rate_95th'] / $bill['bill_allowed']) * 100), 2);
+            $percent = Number::calculatePercent($bill['rate_95th'], $bill['bill_allowed']);
             $overuse = ($bill['rate_95th'] - $bill['bill_allowed']);
         }
 
-        $overuse_formatted = \LibreNMS\Util\Number::formatSi($overuse, 2, 3, '') . 'bps';
+        $overuse_formatted = Number::formatSi($overuse, 2, 0, '') . 'bps';
         $used = $rate_95th;
         $tmp_used = $bill['rate_95th'];
         $rate_95th = "<b>$rate_95th</b>";
-    } elseif (strtolower($bill['bill_type']) == 'quota') {
+    } elseif (strtolower((string) $bill['bill_type']) == 'quota') {
         $type = 'Quota';
-        $allowed = format_bytes_billing($bill['bill_allowed']);
+        $allowed = Billing::formatBytes($bill['bill_allowed']);
         if (! empty($prev)) {
-            $in = format_bytes_billing($bill['traf_in']);
-            $out = format_bytes_billing($bill['traf_out']);
+            $in = Billing::formatBytes($bill['traf_in']);
+            $out = Billing::formatBytes($bill['traf_out']);
         } else {
-            $in = format_bytes_billing($bill['total_data_in']);
-            $out = format_bytes_billing($bill['total_data_out']);
+            $in = Billing::formatBytes($bill['total_data_in']);
+            $out = Billing::formatBytes($bill['total_data_out']);
         }
         if (! $prev) {
-            $percent = round((($bill['total_data'] / ($bill['bill_allowed'])) * 100), 2);
+            $percent = Number::calculatePercent($bill['total_data'], $bill['bill_allowed']);
             $overuse = ($bill['total_data'] - $bill['bill_allowed']);
         }
 
-        $overuse_formatted = format_bytes_billing($overuse);
+        $overuse_formatted = Billing::formatBytes($overuse);
         $used = $total_data;
         $tmp_used = $bill['total_data'];
         $total_data = "<b>$total_data</b>";
@@ -138,37 +141,42 @@ foreach (dbFetchRows($sql, $param) as $bill) {
     $background = \LibreNMS\Util\Color::percentage($percent, null);
     $right_background = $background['right'];
     $left_background = $background['left'];
-    $overuse_formatted = (($overuse <= 0) ? '-' : "<span style='color: #${background['left']}; font-weight: bold;'>$overuse_formatted</span>");
+    $overuse_formatted = (($overuse <= 0) ? '-' : "<span style='color: #{$background['left']}; font-weight: bold;'>$overuse_formatted</span>");
 
-    $bill_name = "<a href='$url'><span style='font-weight: bold;' class='interface'>${bill['bill_name']}</span></a><br />" .
-                    strftime('%F', strtotime($datefrom)) . ' to ' . strftime('%F', strtotime($dateto));
-    $bar = print_percentage_bar(250, 20, $percent, null, 'ffffff', $background['left'], $percent . '%', 'ffffff', $background['right']);
+    $bill_name = "<a href='$url'><span class='tw:font-bold tw:text-blue-900 tw:visited:textc-blue-900 tw:dark:text-dark-white-100 tw:dark:visited:text-dark-white-100'>" . htmlentities((string) $bill['bill_name']) . '</span></a><br />' .
+                    date('Y-m-d', strtotime((string) $datefrom)) . ' to ' . date('Y-m-d', strtotime((string) $dateto));
+    $bar = \LibreNMS\Util\Html::percentageBar(250, 10, $percent, null, $percent . '%', null, null, [
+        'left' => $background['left'],
+        'left_text' => null,
+        'right' => $background['right'],
+        'right_text' => null,
+    ]);
     $actions = '';
 
     if (! $prev && Auth::user()->hasGlobalAdmin()) {
         $actions .= "<a href='" . \LibreNMS\Util\Url::generate(['page' => 'bill', 'bill_id' => $bill['bill_id'], 'view' => 'edit']) .
             "'><i class='fa fa-pencil fa-lg icon-theme' title='Edit' aria-hidden='true'></i> Edit</a> ";
     }
-    if (strtolower($bill['bill_type']) == 'cdr') {
-        $predicted = \LibreNMS\Util\Number::formatSi(getPredictedUsage($bill['bill_day'], $tmp_used), 2, 3, '') . 'bps';
-    } elseif (strtolower($bill['bill_type']) == 'quota') {
-        $predicted = format_bytes_billing(getPredictedUsage($bill['bill_day'], $tmp_used));
+    if (strtolower((string) $bill['bill_type']) == 'cdr') {
+        $predicted = Number::formatSi(Billing::getPredictedUsage($bill['bill_day'], $tmp_used), 2, 0, '') . 'bps';
+    } elseif (strtolower((string) $bill['bill_type']) == 'quota') {
+        $predicted = Billing::formatBytes(Billing::getPredictedUsage($bill['bill_day'], $tmp_used));
     }
 
     $response[] = [
-        'bill_name'     => $bill_name,
-        'notes'         => $notes,
-        'bill_type'     => $type,
-        'bill_allowed'    => $allowed,
+        'bill_name' => $bill_name,
+        'notes' => $notes,
+        'bill_type' => $type,
+        'bill_allowed' => $allowed,
         'total_data_in' => $in,
-        'total_data_out'=> $out,
-        'total_data'    => $total_data,
-        'rate_95th'     => $rate_95th,
-        'used'          => $used,
-        'overusage'     => $overuse_formatted,
-        'predicted'     => $predicted,
-        'graph'         => $bar,
-        'actions'       => $actions,
+        'total_data_out' => $out,
+        'total_data' => $total_data,
+        'rate_95th' => $rate_95th,
+        'used' => $used,
+        'overusage' => $overuse_formatted,
+        'predicted' => $predicted,
+        'graph' => $bar,
+        'actions' => $actions,
     ];
 }
 

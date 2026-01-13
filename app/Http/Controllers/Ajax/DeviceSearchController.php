@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Search.php
  *
@@ -25,10 +26,10 @@
 
 namespace App\Http\Controllers\Ajax;
 
+use App\Facades\LibrenmsConfig;
 use App\Models\Device;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use LibreNMS\Config;
 use LibreNMS\Util\Color;
 
 class DeviceSearchController extends SearchController
@@ -57,20 +58,20 @@ class DeviceSearchController extends SearchController
                     $baseQuery->leftJoin('ports', 'ports.device_id', '=', 'devices.device_id')
                         ->leftJoin('ipv4_addresses', 'ipv4_addresses.port_id', 'ports.port_id');
 
-                    $query->orWhere('ipv4_address', '=', $search)
+                    $query->orWhere('ipv4_addresses.ipv4_address', '=', $search)
                         ->orWhere('overwrite_ip', '=', $search)
                         ->orWhere('ip', '=', inet_pton($search));
                 } elseif (\LibreNMS\Util\IPv6::isValid($search, false)) {
                     $baseQuery->leftJoin('ports', 'ports.device_id', '=', 'devices.device_id')
                         ->leftJoin('ipv6_addresses', 'ipv6_addresses.port_id', 'ports.port_id');
 
-                    $query->orWhere('ipv6_address', '=', $search)
+                    $query->orWhere('ipv6_addresses.ipv6_address', '=', $search)
                         ->orWhere('overwrite_ip', '=', $search)
                         ->orWhere('ip', '=', inet_pton($search));
                 } elseif (ctype_xdigit($mac_search = str_replace([':', '-', '.'], '', $search))) {
                     $baseQuery->leftJoin('ports', 'ports.device_id', '=', 'devices.device_id');
 
-                    $query->orWhere('ifPhysAddress', 'LIKE', "%$mac_search%");
+                    $query->orWhere('ports.ifPhysAddress', 'LIKE', "%$mac_search%");
                 }
 
                 return $query;
@@ -96,7 +97,7 @@ class DeviceSearchController extends SearchController
             'device_ports' => $device->ports()->count(),
             'device_image' => $device->icon,
             'device_hardware' => $device->hardware,
-            'device_os' => Config::getOsSetting($device->os, 'text'),
+            'device_os' => LibrenmsConfig::getOsSetting($device->os, 'text'),
             'version' => $device->version,
             'location' => $device->location,
         ];

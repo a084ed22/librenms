@@ -1,4 +1,5 @@
 <?php
+
 /**
  * AjaxController.php
  *
@@ -50,10 +51,10 @@ abstract class PaginatedAjaxController extends Controller
     /**
      * Defines the base query for this resource
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     * @param  Request  $request
+     * @return Builder|\Illuminate\Database\Query\Builder
      */
-    abstract protected function baseQuery($request);
+    abstract protected function baseQuery(Request $request);
 
     /**
      * @param  Paginator  $paginator
@@ -74,11 +75,10 @@ abstract class PaginatedAjaxController extends Controller
     /**
      * Defines search fields. They will be searched in order.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return array
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
-    protected function searchFields($request)
+    protected function searchFields(Request $request)
     {
         return [];
     }
@@ -86,11 +86,10 @@ abstract class PaginatedAjaxController extends Controller
     /**
      * Defines filter fields.  Request and table fields must match.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return array
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
-    protected function filterFields($request)
+    protected function filterFields(Request $request)
     {
         return [];
     }
@@ -98,11 +97,10 @@ abstract class PaginatedAjaxController extends Controller
     /**
      * Defines sortable fields.  The incoming sort field should be the key, the sql column or DB::raw() should be the value
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return array
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
-    protected function sortFields($request)
+    protected function sortFields(Request $request)
     {
         return [];
     }
@@ -127,7 +125,7 @@ abstract class PaginatedAjaxController extends Controller
     protected function search($search, $query, $fields)
     {
         if ($search) {
-            $query->where(function ($query) use ($fields, $search) {
+            $query->where(function ($query) use ($fields, $search): void {
                 foreach ($fields as $field) {
                     $query->orWhere($field, 'like', '%' . $search . '%');
                 }
@@ -146,7 +144,18 @@ abstract class PaginatedAjaxController extends Controller
     protected function filter($request, $query, $fields)
     {
         foreach ($fields as $target => $field) {
-            if ($value = $request->get($field)) {
+            $callable = is_callable($field);
+            $value = $request->get($callable ? $target : $field);
+
+            // unfiltered field
+            if ($value === null) {
+                continue;
+            }
+
+            // apply the filter
+            if ($callable) {
+                $field($query, $value);
+            } else {
                 $value = $this->adjustFilterValue($field, $value);
                 if (is_string($target)) {
                     $query->where($target, $value);
@@ -183,7 +192,7 @@ abstract class PaginatedAjaxController extends Controller
     /**
      * Validate the given request with the given rules.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @param  array  $rules
      * @param  array  $messages
      * @param  array  $customAttributes
@@ -206,13 +215,10 @@ abstract class PaginatedAjaxController extends Controller
      */
     protected function adjustFilterValue($field, $value)
     {
-        switch ($field) {
-            case 'device':
-            case 'device_id':
-            case 'port_id':
-                $value = (int) $value;
-                break;
-        }
+        $value = match ($field) {
+            'device', 'device_id', 'port_id' => (int) $value,
+            default => $value,
+        };
 
         return $value;
     }

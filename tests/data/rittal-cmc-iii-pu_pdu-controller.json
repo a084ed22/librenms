@@ -10,11 +10,11 @@
                     "version": "V7.17.30_1",
                     "hardware": "PDU-Controller",
                     "features": null,
+                    "location": "<private>",
                     "os": "rittal-cmc-iii-pu",
                     "type": "environment",
                     "serial": "34260505",
-                    "icon": "rittal.svg",
-                    "location": "<private>"
+                    "icon": "rittal.svg"
                 }
             ]
         },
@@ -36,7 +36,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -46,15 +45,11 @@
                     "ifType": "softwareLoopback",
                     "ifAlias": "lo",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -141,7 +136,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -151,15 +145,11 @@
                     "ifType": "other",
                     "ifAlias": "can0",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -246,7 +236,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -256,15 +245,11 @@
                     "ifType": "other",
                     "ifAlias": "can1",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -351,7 +336,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -361,15 +345,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "eth0",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -456,7 +436,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "down",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -466,15 +445,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "eth1",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -561,7 +536,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": null,
-                    "ifPromiscuousMode": null,
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": null,
                     "ifAdminStatus": null,
@@ -571,15 +545,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "br0",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -670,7 +640,6 @@
                     "ifSpeed": 10000000,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": "false",
-                    "ifPromiscuousMode": "false",
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": "up",
                     "ifAdminStatus": "up",
@@ -680,15 +649,11 @@
                     "ifType": "softwareLoopback",
                     "ifAlias": "lo",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -775,7 +740,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": 0,
                     "ifConnectorPresent": "true",
-                    "ifPromiscuousMode": "false",
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": "up",
                     "ifAdminStatus": "up",
@@ -785,15 +749,11 @@
                     "ifType": "other",
                     "ifAlias": "can0",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -880,7 +840,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": 0,
                     "ifConnectorPresent": "true",
-                    "ifPromiscuousMode": "false",
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": "up",
                     "ifAdminStatus": "up",
@@ -890,15 +849,11 @@
                     "ifType": "other",
                     "ifAlias": "can1",
                     "ifPhysAddress": null,
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -985,7 +940,6 @@
                     "ifSpeed": 100000000,
                     "ifSpeed_prev": null,
                     "ifConnectorPresent": "true",
-                    "ifPromiscuousMode": "true",
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": "up",
                     "ifAdminStatus": "up",
@@ -995,15 +949,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "eth0",
                     "ifPhysAddress": "d8a98b6874b3",
-                    "ifHardType": null,
                     "ifLastChange": 623190,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -1090,7 +1040,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": 0,
                     "ifConnectorPresent": "true",
-                    "ifPromiscuousMode": "false",
                     "ifOperStatus": "down",
                     "ifOperStatus_prev": "down",
                     "ifAdminStatus": "up",
@@ -1100,15 +1049,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "eth1",
                     "ifPhysAddress": "d8a98b6874b5",
-                    "ifHardType": null,
                     "ifLastChange": 0,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -1195,7 +1140,6 @@
                     "ifSpeed": null,
                     "ifSpeed_prev": 0,
                     "ifConnectorPresent": "true",
-                    "ifPromiscuousMode": "false",
                     "ifOperStatus": "up",
                     "ifOperStatus_prev": "up",
                     "ifAdminStatus": "up",
@@ -1205,15 +1149,11 @@
                     "ifType": "ethernetCsmacd",
                     "ifAlias": "br0",
                     "ifPhysAddress": "d8a98b6874b3",
-                    "ifHardType": null,
                     "ifLastChange": 623190,
-                    "ifVlan": "",
+                    "ifVlan": null,
                     "ifTrunk": null,
-                    "counter_in": null,
-                    "counter_out": null,
                     "ignore": 0,
                     "disabled": 0,
-                    "detailed": 0,
                     "deleted": 0,
                     "pagpOperationMode": null,
                     "pagpPortState": null,
@@ -1300,7 +1240,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.36",
                     "sensor_index": "21",
                     "sensor_type": "Phase L1 Current",
-                    "sensor_descr": "Current L1",
+                    "sensor_descr": "Phase L1 Current Current L1",
                     "group": null,
                     "sensor_divisor": 100,
                     "sensor_multiplier": 1,
@@ -1315,6 +1255,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1324,7 +1265,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.79",
                     "sensor_index": "34",
                     "sensor_type": "Phase L2 Current",
-                    "sensor_descr": "Current L2",
+                    "sensor_descr": "Phase L2 Current Current L2",
                     "group": null,
                     "sensor_divisor": 100,
                     "sensor_multiplier": 1,
@@ -1339,6 +1280,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1348,7 +1290,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.122",
                     "sensor_index": "47",
                     "sensor_type": "Phase L3 Current",
-                    "sensor_descr": "Current L3",
+                    "sensor_descr": "Phase L3 Current Current L3",
                     "group": null,
                     "sensor_divisor": 100,
                     "sensor_multiplier": 1,
@@ -1363,6 +1305,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1387,6 +1330,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1396,7 +1340,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.1",
                     "sensor_index": "11",
                     "sensor_type": "Total Frequency",
-                    "sensor_descr": "50.0 Hz",
+                    "sensor_descr": "Total Frequency 50.0 Hz",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1411,6 +1355,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1420,7 +1365,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.44",
                     "sensor_index": "22",
                     "sensor_type": "Phase L1 Current THD",
-                    "sensor_descr": "8 %",
+                    "sensor_descr": "Phase L1 Current THD 8 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1435,6 +1380,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1444,7 +1390,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.34",
                     "sensor_index": "20",
                     "sensor_type": "Phase L1 Voltage THD",
-                    "sensor_descr": "0 %",
+                    "sensor_descr": "Phase L1 Voltage THD 0 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1459,6 +1405,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1468,7 +1415,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.87",
                     "sensor_index": "35",
                     "sensor_type": "Phase L2 Current THD",
-                    "sensor_descr": "7 %",
+                    "sensor_descr": "Phase L2 Current THD 7 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1483,6 +1430,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1492,7 +1440,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.77",
                     "sensor_index": "33",
                     "sensor_type": "Phase L2 Voltage THD",
-                    "sensor_descr": "0 %",
+                    "sensor_descr": "Phase L2 Voltage THD 0 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1507,6 +1455,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1516,7 +1465,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.130",
                     "sensor_index": "48",
                     "sensor_type": "Phase L3 Current THD",
-                    "sensor_descr": "39 %",
+                    "sensor_descr": "Phase L3 Current THD 39 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1531,6 +1480,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1540,7 +1490,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.120",
                     "sensor_index": "46",
                     "sensor_type": "Phase L3 Voltage THD",
-                    "sensor_descr": "0 %",
+                    "sensor_descr": "Phase L3 Voltage THD 0 %",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1555,6 +1505,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1564,7 +1515,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.47",
                     "sensor_index": "24",
                     "sensor_type": "Phase L1 Power Active",
-                    "sensor_descr": "Power L1",
+                    "sensor_descr": "Phase L1 Power Active Power L1",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1579,6 +1530,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1588,7 +1540,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.56",
                     "sensor_index": "26",
                     "sensor_type": "Phase L1 Power Apparent",
-                    "sensor_descr": "1092 VA",
+                    "sensor_descr": "Phase L1 Power Apparent 1092 VA",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1603,6 +1555,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1612,7 +1565,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.55",
                     "sensor_index": "25",
                     "sensor_type": "Phase L1 Power Reactive",
-                    "sensor_descr": "293 var",
+                    "sensor_descr": "Phase L1 Power Reactive 293 var",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1627,6 +1580,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1636,7 +1590,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.90",
                     "sensor_index": "37",
                     "sensor_type": "Phase L2 Power Active",
-                    "sensor_descr": "Power L2",
+                    "sensor_descr": "Phase L2 Power Active Power L2",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1651,6 +1605,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1660,7 +1615,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.99",
                     "sensor_index": "39",
                     "sensor_type": "Phase L2 Power Apparent",
-                    "sensor_descr": "1274 VA",
+                    "sensor_descr": "Phase L2 Power Apparent 1274 VA",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1675,6 +1630,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1684,7 +1640,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.98",
                     "sensor_index": "38",
                     "sensor_type": "Phase L2 Power Reactive",
-                    "sensor_descr": "281 var",
+                    "sensor_descr": "Phase L2 Power Reactive 281 var",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1699,6 +1655,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1708,7 +1665,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.133",
                     "sensor_index": "50",
                     "sensor_type": "Phase L3 Power Active",
-                    "sensor_descr": "Power L3",
+                    "sensor_descr": "Phase L3 Power Active Power L3",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1723,6 +1680,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1732,7 +1690,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.142",
                     "sensor_index": "52",
                     "sensor_type": "Phase L3 Power Apparent",
-                    "sensor_descr": "547 VA",
+                    "sensor_descr": "Phase L3 Power Apparent 547 VA",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1747,6 +1705,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1756,7 +1715,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.141",
                     "sensor_index": "51",
                     "sensor_type": "Phase L3 Power Reactive",
-                    "sensor_descr": "208 var",
+                    "sensor_descr": "Phase L3 Power Reactive 208 var",
                     "group": null,
                     "sensor_divisor": 1,
                     "sensor_multiplier": 1,
@@ -1771,6 +1730,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1795,6 +1755,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1804,7 +1765,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.57",
                     "sensor_index": "27",
                     "sensor_type": "Phase L1 Energy Active",
-                    "sensor_descr": "999.1 kWh",
+                    "sensor_descr": "Phase L1 Energy Active 999.1 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1819,6 +1780,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1828,7 +1790,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.58",
                     "sensor_index": "28",
                     "sensor_type": "Phase L1 Energy Active Custom",
-                    "sensor_descr": "999.1 kWh",
+                    "sensor_descr": "Phase L1 Energy Active Custom 999.1 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1843,6 +1805,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1852,7 +1815,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.59",
                     "sensor_index": "29",
                     "sensor_type": "Phase L1 Energy Apparent",
-                    "sensor_descr": "1042.6 kVAh",
+                    "sensor_descr": "Phase L1 Energy Apparent 1042.6 kVAh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1867,6 +1830,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1876,7 +1840,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.100",
                     "sensor_index": "40",
                     "sensor_type": "Phase L2 Energy Active",
-                    "sensor_descr": "1170.5 kWh",
+                    "sensor_descr": "Phase L2 Energy Active 1170.5 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1891,6 +1855,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1900,7 +1865,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.101",
                     "sensor_index": "41",
                     "sensor_type": "Phase L2 Energy Active Custom",
-                    "sensor_descr": "1170.5 kWh",
+                    "sensor_descr": "Phase L2 Energy Active Custom 1170.5 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1915,6 +1880,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1924,7 +1890,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.102",
                     "sensor_index": "42",
                     "sensor_type": "Phase L2 Energy Apparent",
-                    "sensor_descr": "1206.6 kVAh",
+                    "sensor_descr": "Phase L2 Energy Apparent 1206.6 kVAh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1939,6 +1905,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1948,7 +1915,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.143",
                     "sensor_index": "53",
                     "sensor_type": "Phase L3 Energy Active",
-                    "sensor_descr": "472.2 kWh",
+                    "sensor_descr": "Phase L3 Energy Active 472.2 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1963,6 +1930,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1972,7 +1940,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.144",
                     "sensor_index": "54",
                     "sensor_type": "Phase L3 Energy Active Custom",
-                    "sensor_descr": "472.2 kWh",
+                    "sensor_descr": "Phase L3 Energy Active Custom 472.2 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -1987,6 +1955,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -1996,7 +1965,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.145",
                     "sensor_index": "55",
                     "sensor_type": "Phase L3 Energy Apparent",
-                    "sensor_descr": "549.9 kVAh",
+                    "sensor_descr": "Phase L3 Energy Apparent 549.9 kVAh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2011,6 +1980,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -2020,7 +1990,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.20",
                     "sensor_index": "14",
                     "sensor_type": "Total Energy Active",
-                    "sensor_descr": "2641.8 kWh",
+                    "sensor_descr": "Total Energy Active 2641.8 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2035,6 +2005,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -2044,7 +2015,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.22",
                     "sensor_index": "16",
                     "sensor_type": "Total Energy Active Custom",
-                    "sensor_descr": "2575.9 kWh",
+                    "sensor_descr": "Total Energy Active Custom 2575.9 kWh",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2059,6 +2030,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -2083,6 +2055,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": "cmcIIIUnitStatus"
                 },
                 {
@@ -2107,6 +2080,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": "Input_34260505"
                 },
                 {
@@ -2116,7 +2090,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.26",
                     "sensor_index": "19",
                     "sensor_type": "Phase L1 Voltage",
-                    "sensor_descr": "Voltage L1",
+                    "sensor_descr": "Phase L1 Voltage Voltage L1",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2131,6 +2105,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -2140,7 +2115,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.69",
                     "sensor_index": "32",
                     "sensor_type": "Phase L2 Voltage",
-                    "sensor_descr": "Voltage L2",
+                    "sensor_descr": "Phase L2 Voltage Voltage L2",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2155,6 +2130,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 },
                 {
@@ -2164,7 +2140,7 @@
                     "sensor_oid": ".1.3.6.1.4.1.2606.7.4.2.2.1.11.2.112",
                     "sensor_index": "45",
                     "sensor_type": "Phase L3 Voltage",
-                    "sensor_descr": "Voltage L3",
+                    "sensor_descr": "Phase L3 Voltage Voltage L3",
                     "group": null,
                     "sensor_divisor": 10,
                     "sensor_multiplier": 1,
@@ -2179,6 +2155,7 @@
                     "entPhysicalIndex_measured": null,
                     "sensor_prev": null,
                     "user_func": null,
+                    "rrd_type": "GAUGE",
                     "state_name": null
                 }
             ],
@@ -2221,5 +2198,40 @@
             ]
         },
         "poller": "matches discovery"
+    },
+    "ipv6-addresses": {
+        "discovery": {
+            "ipv6_addresses": [
+                {
+                    "ipv6_address": "fe80:0000:0000:0000:daa9:8bff:fe68:74b3",
+                    "ipv6_compressed": "fe80::daa9:8bff:fe68:74b3",
+                    "ipv6_prefixlen": 64,
+                    "ipv6_origin": "linklayer",
+                    "context_name": "",
+                    "ipv6_network": null,
+                    "ifIndex": 6
+                }
+            ]
+        }
+    },
+    "ipv4-addresses": {
+        "discovery": {
+            "ipv4_addresses": [
+                {
+                    "ipv4_address": "127.0.0.1",
+                    "ipv4_prefixlen": 8,
+                    "context_name": "",
+                    "ipv4_network": "127.0.0.0/8",
+                    "ifIndex": 1
+                },
+                {
+                    "ipv4_address": "149.217.129.150",
+                    "ipv4_prefixlen": 20,
+                    "context_name": "",
+                    "ipv4_network": "149.217.128.0/20",
+                    "ifIndex": 6
+                }
+            ]
+        }
     }
 }

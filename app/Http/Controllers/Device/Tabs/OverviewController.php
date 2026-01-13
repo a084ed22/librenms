@@ -1,4 +1,5 @@
 <?php
+
 /**
  * OverviewController.php
  *
@@ -26,6 +27,7 @@
 namespace App\Http\Controllers\Device\Tabs;
 
 use App\Models\Device;
+use Illuminate\Http\Request;
 use LibreNMS\Interfaces\UI\DeviceTab;
 use Session;
 
@@ -51,7 +53,7 @@ class OverviewController implements DeviceTab
         return __('Overview');
     }
 
-    public function data(Device $device): array
+    public function data(Device $device, Request $request): array
     {
         return [];
     }
@@ -63,14 +65,12 @@ class OverviewController implements DeviceTab
             if ($screen_width > 970) {
                 $graph['width'] = round(($screen_width - 390) / 2, 0);
                 $graph['height'] = round($graph['width'] / 3);
-                $graph['lazy_w'] = $graph['width'] + 80;
 
                 return $graph;
             }
 
             $graph['width'] = $screen_width - 190;
             $graph['height'] = round($graph['width'] / 3);
-            $graph['lazy_w'] = $graph['width'] + 80;
         }
 
         return $graph;

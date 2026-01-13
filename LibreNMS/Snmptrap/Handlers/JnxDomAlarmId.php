@@ -1,4 +1,5 @@
 <?php
+
 /**
  * JnxDomAlarmId.php
  *
@@ -31,7 +32,7 @@ namespace LibreNMS\Snmptrap\Handlers;
 
 class JnxDomAlarmId
 {
-    public static function getAlarms($currentAlarm)
+    public static function getAlarms(string $currentAlarm): string
     {
         $alarmBin = preg_split(
             '//',
@@ -72,8 +73,7 @@ class JnxDomAlarmId
             }
             $index++;
         }
-        $message = implode(', ', $descr);
 
-        return $message;
+        return implode(', ', $descr);
     }
 }

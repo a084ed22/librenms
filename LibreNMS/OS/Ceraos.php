@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Ceraos.php
  *
@@ -50,7 +51,7 @@ class Ceraos extends OS implements OSDiscovery, WirelessXpiDiscovery, WirelessFr
         $device->version = $data[1]['MWRM-UNIT-MIB::genEquipMngSwIDUVersionsRunningVersion'] ?? null;
 
         // update location lat/lng
-        if ($device->location && (! empty($multi_get_array[0]['MWRM-UNIT-MIB::genEquipUnitLatitude']) || ! empty($multi_get_array[0]['MWRM-UNIT-MIB::genEquipUnitLongitude']))) {
+        if ($device->location) {
             $device->location->lat = $multi_get_array[0]['MWRM-UNIT-MIB::genEquipUnitLatitude'] ?? $device->location->lat;
             $device->location->lng = $multi_get_array[0]['MWRM-UNIT-MIB::genEquipUnitLongitude'] ?? $device->location->lng;
             $device->location->save();

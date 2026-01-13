@@ -1,4 +1,5 @@
 <?php
+
 /*
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -23,9 +24,6 @@ use LibreNMS\Exceptions\JsonAppException;
 use LibreNMS\RRD\RrdDefinition;
 
 $name = 'mailcow-postfix';
-$app_id = $app['app_id'];
-
-d_echo($name);
 
 try {
     $mailcow_postfix = json_app_get($device, $name);
@@ -35,8 +33,6 @@ try {
 
     return;
 }
-
-$rrd_name = ['app', $name, $app_id];
 
 $rrd_def = RrdDefinition::make()
     ->addDataset('received', 'GAUGE', 0)
@@ -73,6 +69,11 @@ $fields = [
     'recipienthostsdomains' => $mailcow_postfix['data']['recipienthostsdomains'],
 ];
 
-$tags = compact('name', 'app_id', 'rrd_name', 'rrd_def');
-data_update($device, 'app', $tags, $fields);
+$tags = [
+    'name' => $name,
+    'app_id' => $app->app_id,
+    'rrd_name' => ['app', $name, $app->app_id],
+    'rrd_def' => $rrd_def,
+];
+app('Datastore')->put($device, 'app', $tags, $fields);
 update_application($app, 'OK', $fields);

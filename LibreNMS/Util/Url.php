@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Url.php
  *
@@ -25,20 +26,46 @@
 
 namespace LibreNMS\Util;
 
+use App\Facades\LibrenmsConfig;
 use App\Models\Device;
 use App\Models\Port;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL as LaravelUrl;
 use Illuminate\Support\Str;
-use LibreNMS\Config;
+use LibreNMS\Enum\DeviceStatus;
+use Request;
 use Symfony\Component\HttpFoundation\ParameterBag;
 
 class Url
 {
     /**
-     * @param  Device  $device
-     * @param  string  $text
+     * Provisional device link generation
+     */
+    public static function modernDeviceLink(?Device $device, string $text = '', string $extra = ''): string
+    {
+        if ($device === null) {
+            return e($text);
+        }
+
+        $class = match ($device->getDeviceStatus()) {
+            DeviceStatus::UP, DeviceStatus::IGNORED_UP => 'device-link-up',
+            DeviceStatus::DOWN, DeviceStatus::NEVER_POLLED, DeviceStatus::IGNORED_DOWN => 'device-link-down',
+            DeviceStatus::DISABLED => 'device-link-disabled',
+        };
+
+        return sprintf('<a href="%s" class="%s" x-data="deviceLink()">%s</a>%s',
+            route('device', $device->device_id),
+            $class,
+            e($text ?: $device->displayName()),
+            $extra ? '<br />' . e($extra) : $extra
+        );
+    }
+
+    /**
+     * @param  Device|null  $device
+     * @param  string|null  $text
      * @param  array  $vars
      * @param  int  $start
      * @param  int  $end
@@ -46,14 +73,14 @@ class Url
      * @param  int  $overlib
      * @return string
      */
-    public static function deviceLink($device, $text = null, $vars = [], $start = 0, $end = 0, $escape_text = 1, $overlib = 1)
+    public static function deviceLink($device, $text = '', $vars = [], $start = 0, $end = 0, $escape_text = 1, $overlib = 1)
     {
         if (! $device instanceof Device || ! $device->hostname) {
-            return '';
+            return $escape_text ? htmlentities((string) $text) : (string) $text;
         }
 
         if (! $device->canAccess(Auth::user())) {
-            return $device->displayName();
+            return $escape_text ? htmlentities($device->displayName()) : $device->displayName();
         }
 
         if (! $start) {
@@ -77,32 +104,38 @@ class Url
         $url = Url::deviceUrl($device, $vars);
 
         // beginning of overlib box contains large hostname followed by hardware & OS details
-        $contents = '<div><span class="list-large">' . $device->displayName() . '</span>';
+        // because we are injecting this into javascript htmlentities alone won't work, so strip_tags too
+        $contents = '<div><span class="list-large">' . htmlentities(strip_tags($device->displayName())) . '</span>';
+        $devinfo = '';
         if ($device->hardware) {
-            $contents .= ' - ' . htmlentities($device->hardware);
+            $devinfo .= $device->hardware;
         }
 
         if ($device->os) {
-            $contents .= ' - ' . htmlentities(Config::getOsSetting($device->os, 'text'));
+            $devinfo .= ($devinfo ? ' - ' : '') . LibrenmsConfig::getOsSetting($device->os, 'text');
         }
 
         if ($device->version) {
-            $contents .= ' ' . htmlentities($device->version);
+            $devinfo .= ($devinfo ? ' - ' : '') . $device->version;
         }
 
         if ($device->features) {
-            $contents .= ' (' . htmlentities($device->features) . ')';
+            $devinfo .= ' (' . $device->features . ')';
+        }
+
+        if ($devinfo) {
+            $contents .= '<br />' . htmlentities(strip_tags($devinfo));
         }
 
         if ($device->location_id) {
-            $contents .= ' - ' . htmlentities($device->location);
+            $contents .= '<br />' . htmlentities(strip_tags($device->location ?? ''));
         }
 
-        $contents .= '</div>';
+        $contents .= '</div><br />';
 
         foreach ((array) $graphs as $entry) {
-            $graph = isset($entry['graph']) ? $entry['graph'] : 'unknown';
-            $graphhead = isset($entry['text']) ? $entry['text'] : 'unknown';
+            $graph = $entry['graph'] ?? 'unknown';
+            $graphhead = $entry['text'] ?? 'unknown';
             $contents .= '<div class="overlib-box">';
             $contents .= '<span class="overlib-title">' . $graphhead . '</span><br />';
             $contents .= Url::minigraphImage($device, $start, $end, $graph);
@@ -139,9 +172,10 @@ class Url
             $text = $label;
         }
 
-        $content = '<div class=list-large>' . addslashes(htmlentities($port->device->displayName() . ' - ' . $label)) . '</div>';
+        // strip tags due to complexity of sanitizing here
+        $content = '<div class=list-large>' . addslashes(htmlentities(strip_tags($port->device?->displayName() . ' - ' . $label))) . '</div>';
         if ($description = $port->getDescription()) {
-            $content .= addslashes(htmlentities($description)) . '<br />';
+            $content .= addslashes(htmlentities(strip_tags($description))) . '<br />';
         }
 
         $content .= "<div style=\'width: 850px\'>";
@@ -230,7 +264,7 @@ class Url
      */
     public static function deviceUrl($device, $vars = [])
     {
-        $routeParams = [is_numeric($device) ? $device : $device->device_id];
+        $routeParams = [($device instanceof Device) ? $device->device_id : (int) $device];
         if (isset($vars['tab'])) {
             $routeParams[] = $vars['tab'];
             unset($vars['tab']);
@@ -291,14 +325,14 @@ class Url
             $args['bg'] = 'FFFFFF00';
         }
 
-        return '<img src="' . url('graph.php') . '?type=' . $args['graph_type'] . '&amp;id=' . $args['port_id'] . '&amp;from=' . $args['from'] . '&amp;to=' . $args['to'] . '&amp;width=' . $args['width'] . '&amp;height=' . $args['height'] . '&amp;bg=' . $args['bg'] . '">';
+        return '<img src="graph-image ' . url('graph.php') . '?type=' . $args['graph_type'] . '&amp;id=' . $args['port_id'] . '&amp;from=' . $args['from'] . '&amp;to=' . $args['to'] . '&amp;width=' . $args['width'] . '&amp;height=' . $args['height'] . '&amp;bg=' . $args['bg'] . '">';
     }
 
     public static function generate($vars, $new_vars = [])
     {
         $vars = array_merge($vars, $new_vars);
 
-        $url = url(Config::get('base_url', true) . $vars['page'] . '');
+        $url = url(LibrenmsConfig::get('base_url', true) . $vars['page'] . '');
         unset($vars['page']);
 
         return $url . self::urlParams($vars);
@@ -317,11 +351,25 @@ class Url
         $url = empty($vars) ? '' : $prefix;
         foreach ($vars as $var => $value) {
             if ($value == '0' || $value != '' && ! Str::contains($var, 'opt') && ! is_numeric($var)) {
-                $url .= urlencode($var) . '=' . urlencode($value) . '/';
+                $url .= urlencode((string) $var) . '=' . urlencode((string) $value) . '/';
             }
         }
 
         return $url;
+    }
+
+    /**
+     * @param  array|string  $args
+     */
+    public static function forExternalGraph($args): string
+    {
+        // handle pasted string
+        if (is_string($args)) {
+            $path = str_replace(url('/') . '/', '', $args);
+            $args = self::parseLegacyPathVars($path);
+        }
+
+        return LaravelUrl::signedRoute('graph', $args);
     }
 
     /**
@@ -332,20 +380,21 @@ class Url
     {
         $urlargs = [];
         foreach ($args as $key => $arg) {
-            $urlargs[] = $key . '=' . urlencode($arg);
+            $urlargs[] = $key . '=' . ($arg === null ? '' : urlencode($arg));
         }
 
-        return '<img src="' . url('graph.php') . '?' . implode('&amp;', $urlargs) . '" style="border:0;" />';
+        return '<img class="graph-image" src="' . url('graph.php') . '?' . implode('&amp;', $urlargs) . '" style="border:0;" />';
     }
 
     public static function graphPopup($args, $content = null, $link = null)
     {
         // Take $args and print day,week,month,year graphs in overlib, hovered over graph
-        $original_from = $args['from'];
+        $original_from = $args['from'] ?? '';
+        $popup_title = $args['popup_title'] ?? 'Graph';
         $now = CarbonImmutable::now();
 
         $graph = $content ?: self::graphTag($args);
-        $popup = '<div class=list-large>' . $args['popup_title'] . '</div>';
+        $popup = "<div class='list-large'>$popup_title</div>";
         $popup .= '<div style="width: 850px">';
         $args['width'] = 340;
         $args['height'] = 100;
@@ -372,12 +421,12 @@ class Url
         $urlargs = [];
 
         foreach ($args as $key => $arg) {
-            $urlargs[] = $key . '=' . urlencode($arg);
+            $urlargs[] = $key . '=' . ($arg === null ? '' : urlencode($arg));
         }
 
-        $tag = '<img class="img-responsive" src="' . url('graph.php') . '?' . implode('&amp;', $urlargs) . '" style="border:0;"';
+        $tag = '<img class="graph-image img-responsive" src="' . url('graph.php') . '?' . implode('&amp;', $urlargs) . '" style="border:0;"';
 
-        if (Config::get('enable_lazy_load', true)) {
+        if (LibrenmsConfig::get('enable_lazy_load', true)) {
             return $tag . ' loading="lazy" />';
         }
 
@@ -394,8 +443,8 @@ class Url
             $output = '<a class="' . $class . '" href="' . $url . '"';
         }
 
-        if (Config::get('web_mouseover', true)) {
-            $defaults = Config::get('overlib_defaults', ",FGCOLOR,'#ffffff', BGCOLOR, '#e5e5e5', BORDER, 5, CELLPAD, 4, CAPCOLOR, '#555555', TEXTCOLOR, '#3e3e3e'");
+        if (LibrenmsConfig::get('web_mouseover', true)) {
+            $defaults = LibrenmsConfig::get('overlib_defaults', ",FGCOLOR,'#ffffff', BGCOLOR, '#e5e5e5', BORDER, 5, CELLPAD, 4, CAPCOLOR, '#555555', TEXTCOLOR, '#3e3e3e'");
             $output .= " onmouseover=\"return overlib('$contents'$defaults,WRAP,HAUTO,VAUTO); \" onmouseout=\"return nd();\">";
         } else {
             $output .= '>';
@@ -441,7 +490,7 @@ class Url
     {
         $vars = ['device=' . $device->device_id, "from=$start", "to=$end", "width=$width", "height=$height", "type=$type", "legend=$legend", "absolute=$absolute_size"];
 
-        return '<img class="' . $class . '" width="' . $width . '" height="' . $height . '" src="' . url('graph.php') . '?' . implode($sep, $vars) . '">';
+        return '<img class="graph-image ' . $class . '" width="' . $width . '" height="' . $height . '" src="' . url('graph.php') . '?' . implode($sep, $vars) . '">';
     }
 
     /**
@@ -450,15 +499,13 @@ class Url
      */
     private static function deviceLinkDisplayClass($device)
     {
-        if ($device->disabled) {
-            return 'list-device-disabled';
-        }
-
-        if ($device->ignore) {
-            return $device->status ? 'list-device-ignored-up' : 'list-device-ignored';
-        }
-
-        return $device->status ? 'list-device' : 'list-device-down';
+        return match ($device->getDeviceStatus()) {
+            DeviceStatus::DISABLED => 'list-device-disabled',
+            DeviceStatus::DOWN, DeviceStatus::NEVER_POLLED => 'list-device-down',
+            DeviceStatus::UP => 'list-device',
+            DeviceStatus::IGNORED_DOWN => 'list-device-ignored',
+            DeviceStatus::IGNORED_UP => 'list-device-ignored-up',
+        };
     }
 
     /**
@@ -501,7 +548,7 @@ class Url
 
     /**
      * @param  string  $os
-     * @param  string  $feature
+     * @param  string|null  $feature
      * @param  string  $icon
      * @param  string  $dir  directory to search in (images/os/ or images/logos)
      * @return string
@@ -511,27 +558,27 @@ class Url
         $possibilities = [$icon];
 
         if ($os) {
-            if ($os == 'linux') {
+            if ($os == 'linux' && $feature) {
                 // first, prefer the first word of $feature
                 $distro = Str::before(strtolower(trim($feature)), ' ');
                 $possibilities[] = "$distro.svg";
                 $possibilities[] = "$distro.png";
 
                 // second, prefer the first two words of $feature (i.e. 'Red Hat' becomes 'redhat')
-                if (strpos($feature, ' ') !== false) {
+                if (str_contains($feature, ' ')) {
                     $distro = Str::replaceFirst(' ', '', strtolower(trim($feature)));
                     $distro = Str::before($distro, ' ');
                     $possibilities[] = "$distro.svg";
                     $possibilities[] = "$distro.png";
                 }
             }
-            $os_icon = Config::getOsSetting($os, 'icon', $os);
+            $os_icon = LibrenmsConfig::getOsSetting($os, 'icon', $os);
             $possibilities[] = "$os_icon.svg";
             $possibilities[] = "$os_icon.png";
         }
 
         foreach ($possibilities as $file) {
-            if (is_file(Config::get('html_dir') . "/$dir" . $file)) {
+            if (is_file(LibrenmsConfig::get('html_dir') . "/$dir" . $file)) {
                 return $file;
             }
         }
@@ -548,9 +595,7 @@ class Url
      */
     public static function parseLegacyPath($path)
     {
-        $parts = array_filter(explode('/', $path), function ($part) {
-            return Str::contains($part, '=');
-        });
+        $parts = array_filter(explode('/', $path), fn ($part) => Str::contains($part, '='));
 
         $vars = [];
         foreach ($parts as $part) {
@@ -559,6 +604,80 @@ class Url
         }
 
         return new ParameterBag($vars);
+    }
+
+    /**
+     * Parse options from the url including get/post parameters and any url segments containing an =
+     *
+     * @param  int|string|null  $key  Optional key to pull from the options
+     * @param  mixed  $default  The default value to return when the given key does not exist
+     * @return array|mixed|null
+     */
+    public static function parseOptions($key = null, $default = null)
+    {
+        $request = request();
+        $options = $request->all();
+
+        foreach (explode('/', $request->path()) as $segment) {
+            $segment = urldecode($segment);
+            if (Str::contains($segment, '=')) {
+                [$name, $value] = explode('=', $segment, 2);
+                $options[$name] = $value;
+            }
+        }
+
+        return is_null($key) ? $options : $options[$key] ?? $default;
+    }
+
+    /**
+     * Parse variables from legacy path /key=value/key=value or regular get/post variables
+     */
+    public static function parseLegacyPathVars(?string $path = null): array
+    {
+        $vars = [];
+        $parsed_get_vars = [];
+        if (empty($path)) {
+            $path = Request::path();
+        } elseif (Str::startsWith($path, 'http') || str_contains($path, '?')) {
+            $parsed_url = parse_url($path);
+            $path = $parsed_url['path'] ?? '';
+            parse_str($parsed_url['query'] ?? '', $parsed_get_vars);
+        }
+
+        // don't parse the subdirectory, if there is one in the path
+        $base_url = parse_url(LibrenmsConfig::get('base_url'))['path'] ?? '';
+        if (strlen($base_url) > 1) {
+            $segments = explode('/', trim(str_replace($base_url, '', $path), '/'));
+        } else {
+            $segments = explode('/', trim((string) $path, '/'));
+        }
+
+        // parse the path
+        foreach ($segments as $pos => $segment) {
+            $segment = urldecode($segment);
+            if ($pos === 0) {
+                $vars['page'] = $segment;
+            } else {
+                [$name, $value] = array_pad(explode('=', $segment), 2, null);
+                if ($value === null) {
+                    if ($vars['page'] == 'device' && $pos < 3) {
+                        // translate laravel device routes properly
+                        $vars[$pos === 1 ? 'device' : 'tab'] = $name;
+                    } elseif ($name) {
+                        $vars[$name] = 'yes';
+                    }
+                } else {
+                    $vars[$name] = $value;
+                }
+            }
+        }
+
+        $vars = array_merge($vars, $parsed_get_vars);
+
+        // don't leak login data
+        unset($vars['username'], $vars['password']);
+
+        return $vars;
     }
 
     private static function escapeBothQuotes($string)

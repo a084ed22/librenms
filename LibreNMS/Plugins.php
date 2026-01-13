@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Plugins.php
  *
@@ -26,7 +27,9 @@
 
 namespace LibreNMS;
 
+use App\Facades\LibrenmsConfig;
 use App\Models\Plugin;
+use LibreNMS\Util\Notifications;
 use Log;
 
 /**
@@ -66,7 +69,7 @@ class Plugins
         }
 
         self::$plugins = [];
-        $plugin_dir = Config::get('plugin_dir');
+        $plugin_dir = LibrenmsConfig::get('plugin_dir');
 
         if (! file_exists($plugin_dir)) {
             return false;
@@ -100,21 +103,21 @@ class Plugins
      */
     public static function load($file, $pluginName)
     {
-        chdir(Config::get('install_dir') . '/html');
+        chdir(LibrenmsConfig::get('install_dir') . '/html');
         $plugin = self::getInstance($file, $pluginName);
 
         if (! is_null($plugin)) {
-            $class = get_class($plugin);
+            $class = $plugin::class;
             $hooks = get_class_methods($class);
 
             foreach ((array) $hooks as $hookName) {
                 if ($hookName[0] != '_') {
-                    self::$plugins[$hookName][] = $class;
+                    self::$plugins[$hookName][] = $plugin;
                 }
             }
         }
 
-        chdir(Config::get('install_dir'));
+        chdir(LibrenmsConfig::get('install_dir'));
 
         return $plugin;
     }
@@ -178,27 +181,33 @@ class Plugins
      */
     public static function call($hook, $params = false)
     {
-        chdir(Config::get('install_dir') . '/html');
+        chdir(LibrenmsConfig::get('install_dir') . '/html');
         self::start();
 
         ob_start();
         if (! empty(self::$plugins[$hook])) {
-            foreach (self::$plugins[$hook] as $name) {
+            foreach (self::$plugins[$hook] as $plugin) {
                 try {
                     if (! is_array($params)) {
-                        @call_user_func([$name, $hook]);
+                        @call_user_func([$plugin, $hook]);
                     } else {
-                        @call_user_func_array([$name, $hook], $params);
+                        @call_user_func_array([$plugin, $hook], $params);
                     }
-                } catch (\Exception $e) {
+                } catch (\Exception|\Error $e) {
                     Log::error($e);
+
+                    $class = (string) $plugin::class;
+                    $name = property_exists($class, 'name') ? $class::$name : basename(str_replace('\\', '/', $class));
+
+                    Notifications::create("Plugin $name disabled", "$name caused an error and was disabled, please check with the plugin creator to fix the error. The error can be found in logs/librenms.log", 'plugins', 2);
+                    Plugin::where('plugin_name', $name)->update(['plugin_active' => 0]);
                 }
             }
         }
         $output = ob_get_contents();
         ob_end_clean();
 
-        chdir(Config::get('install_dir'));
+        chdir(LibrenmsConfig::get('install_dir'));
 
         return $output;
     }
@@ -219,12 +228,12 @@ class Plugins
     {
         $countInstalled = 0;
 
-        if (file_exists(\LibreNMS\Config::get('plugin_dir'))) {
-            $plugin_files = array_diff(scandir(\LibreNMS\Config::get('plugin_dir')), ['..', '.']);
+        if (file_exists(LibrenmsConfig::get('plugin_dir'))) {
+            $plugin_files = array_diff(scandir(LibrenmsConfig::get('plugin_dir')), ['..', '.']);
             $plugin_files = array_diff($plugin_files, Plugin::versionOne()->pluck('plugin_name')->toArray());
             foreach ($plugin_files as $name) {
-                if (is_dir(\LibreNMS\Config::get('plugin_dir') . '/' . $name)
-                    && is_file(\LibreNMS\Config::get('plugin_dir') . '/' . $name . '/' . $name . '.php')) {
+                if (is_dir(LibrenmsConfig::get('plugin_dir') . '/' . $name)
+                    && is_file(LibrenmsConfig::get('plugin_dir') . '/' . $name . '/' . $name . '.php')) {
                     Plugin::create(['plugin_name' => $name, 'plugin_active' => false, 'version' => 1]);
                     $countInstalled++;
                 }
@@ -238,8 +247,8 @@ class Plugins
     {
         $countRemoved = 0;
 
-        if (file_exists(\LibreNMS\Config::get('plugin_dir'))) {
-            $plugin_files = array_diff(scandir(\LibreNMS\Config::get('plugin_dir')), ['.', '..', '.gitignore']);
+        if (file_exists(LibrenmsConfig::get('plugin_dir'))) {
+            $plugin_files = array_diff(scandir(LibrenmsConfig::get('plugin_dir')), ['.', '..', '.gitignore']);
             $plugins = Plugin::versionOne()->whereNotIn('plugin_name', $plugin_files)->select('plugin_id')->get();
             foreach ($plugins as $plugin) {
                 if ($plugin->delete()) {

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * VmwVmHBDetected.php
  *
@@ -31,9 +32,9 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
+use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class VmwVmHBDetected implements SnmptrapHandler
 {
@@ -48,6 +49,6 @@ class VmwVmHBDetected implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $vmGuestName = VmwTrapUtil::getGuestName($trap);
-        Log::event("Heartbeat from guest $vmGuestName detected", $device->device_id, 'trap', 1);
+        $trap->log("Heartbeat from guest $vmGuestName detected", Severity::Ok);
     }
 }

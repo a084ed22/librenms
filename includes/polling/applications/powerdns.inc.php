@@ -7,9 +7,7 @@ use LibreNMS\Exceptions\JsonAppParsingFailedException;
 use LibreNMS\RRD\RrdDefinition;
 
 $name = 'powerdns';
-$app_id = $app['app_id'];
 $powerdns = [];
-echo " $name";
 
 // unused metrics:
 // deferred-packetcache-inserts, deferred-packetcache-lookup, dnsupdate-answers, dnsupdate-changes, dnsupdate-queries, dnsupdate-refused, incoming-notifications
@@ -82,19 +80,23 @@ if (isset($legacy)) {
         $powerdns['udp4-queries'],
         $powerdns['udp6-answers'],
         $powerdns['udp6-queries'],
-        ] = explode("\n", $legacy);
+    ] = explode("\n", $legacy);
 }
 
 d_echo($powerdns);
 
-$rrd_name = ['app', $name, $app_id];
 $rrd_def = RrdDefinition::make();
 $fields = [];
 foreach ($powerdns_metrics as $ds => $metric) {
     $rrd_def->addDataset($ds, 'DERIVE', 0, 125000000000);
-    $fields[$ds] = isset($powerdns[$metric]) ? $powerdns[$metric] : 'U';
+    $fields[$ds] = $powerdns[$metric] ?? null;
 }
 
-$tags = compact('name', 'app_id', 'rrd_name', 'rrd_def');
-data_update($device, 'app', $tags, $fields);
+$tags = [
+    'name' => $name,
+    'app_id' => $app->app_id,
+    'rrd_name' => ['app', $name, $app->app_id],
+    'rrd_def' => $rrd_def,
+];
+app('Datastore')->put($device, 'app', $tags, $fields);
 update_application($app, json_encode($powerdns), $fields);

@@ -1,47 +1,52 @@
-source: Support/Discovery Support.md
-path: blob/master/doc/
+# Discovery Support
 
-# discovery.php
-
-This document will explain how to use discovery.php to debug issues or
+This document will explain how to use discovery to debug issues or
 manually running to process data.
+
+The basic command to get started is:
+
+`lnms device:discover HOSTNAME`
 
 ## Command options
 
 ```bash
--h <device id> | <device hostname wildcard>  Poll single device
--h odd                                       Poll odd numbered devices  (same as -i 2 -n 0)
--h even                                      Poll even numbered devices (same as -i 2 -n 1)
--h all                                       Poll all devices
--h new                                       Poll all devices that have not had a discovery run before
---os <os_name>                               Poll devices only with specified operating system
---type <type>                                Poll devices only with specified type
--i <instances> -n <number>                   Poll as instance <number> of <instances>
-                                             Instances start at 0. 0-3 for -n 4
+Description:
+  Discover information about existing devices, defines what will be polled
 
-Debugging and testing options:
--d                                           Enable debugging output
--v                                           Enable verbose debugging output
--m                                           Specify module(s) to be run. Comma separate modules, submodules may be added with /
+Usage:
+  device:discover [options] [--] <device spec>
+
+Arguments:
+  device spec            Device spec to discover: device_id, hostname, wildcard (*), odd, even, all
+
+Options:
+  -m, --module=MODULE   Specify module(s) to be run. submodules may be added with /.  Multiple values allowed. (multiple values allowed)
+  -h, --help            Display help for the given command. When no command is given display help for the list command
+      --silent          Do not output any message
+  -q, --quiet           Only errors are displayed. All other output is suppressed
+  -V, --version         Display this application version
+      --ansi|--no-ansi  Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction  Do not ask any interactive question
+      --env[=ENV]       The environment the command should run under
+  -v|vv|vvv, --verbose  Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
-`-h` Use this to specify a device via either id or hostname (including
+`<device spec>` Use this to specify a device via either id or hostname (including
 wildcard using *). You can also specify odd and even. all will run
 discovery against all devices whilst new will poll only those devices
 that have recently been added or have been selected for rediscovery.
 
-`-i` This can be used to stagger the discovery process.
+`-v` Enables debugging output so that you can see what is happening during
+a discovery run.
 
-`-d` Enables debugging output (verbose output but with most sensitive
-data masked) so that you can see what is happening during a discovery
-run. This includes things like rrd updates, SQL queries and response
-from snmp.
+`-vv` Enables verbose debugging. This includes things like SQL queries and response
+from snmp with sensitive data masked as best as possible.
 
-`-v` Enables verbose debugging output with all data in tact.
+`-vvv` Enables full debugging output with all data in tact.
 
 `-m` This enables you to specify the module you want to run for discovery.
 
-# Discovery wrapper
+## Discovery wrapper
 
 We have a `discovery-wrapper.py` script which is based on
 `poller-wrapper.py` by [Job Snijders](https://github.com/job). This
@@ -51,67 +56,71 @@ If you need to debug the output of discovery-wrapper.py then you can
 add `-d` to the end of the command - it is NOT recommended to do this
 in cron.
 
-If you want to switch back to discovery.php then you can replace:
+You also may use `-m` to pass a list of comma-separated modules.
+Please refer to [Command options](#command-options) of `lnms device:discover -h`.
+Example: `/opt/librenms/discovery-wrapper.py 1 -m bgp-peers`
+
+If you want to switch back to `lnms device:discover` (not recommended), then you can replace:
 
 `33  */6   * * *   librenms    /opt/librenms/discovery-wrapper.py 1 >> /dev/null 2>&1`
 
 With:
 
-`33  */6   * * *   librenms    /opt/librenms/discovery.php -h all >> /dev/null 2>&1`
+`33  */6   * * *   librenms    /opt/librenms/lnms device:discover all >> /dev/null 2>&1`
 
-# Discovery config
+## Discovery config
 
 These are the default discovery config items. You can globally disable
 a module by setting it to 0. If you just want to disable it for one
 device then you can do this within the WebUI -> Device -> Settings ->
 Modules.
 
-```php
-$config['discovery_modules']['os']                   = true;
-$config['discovery_modules']['ports']                = true;
-$config['discovery_modules']['ports-stack']          = true;
-$config['discovery_modules']['entity-physical']      = true;
-$config['discovery_modules']['entity-state']         = false;
-$config['discovery_modules']['processors']           = true;
-$config['discovery_modules']['mempools']             = true;
-$config['discovery_modules']['cisco-vrf-lite']       = true;
-$config['discovery_modules']['cisco-mac-accounting'] = false;
-$config['discovery_modules']['cisco-pw']             = false;
-$config['discovery_modules']['vrf']                  = false;
-$config['discovery_modules']['cisco-cef']            = false;
-$config['discovery_modules']['cisco-sla']            = false;
-$config['discovery_modules']['cisco-cbqos']          = false;
-$config['discovery_modules']['cisco-otv']            = false;
-$config['discovery_modules']['ipv4-addresses']       = true;
-$config['discovery_modules']['ipv6-addresses']       = true;
-$config['discovery_modules']['route']                = false;
-$config['discovery_modules']['sensors']              = true;
-$config['discovery_modules']['storage']              = true;
-$config['discovery_modules']['hr-device']            = true;
-$config['discovery_modules']['discovery-protocols']  = true;
-$config['discovery_modules']['arp-table']            = true;
-$config['discovery_modules']['discovery-arp']        = false;
-$config['discovery_modules']['junose-atm-vp']        = false;
-$config['discovery_modules']['bgp-peers']            = true;
-$config['discovery_modules']['vlans']                = true;
-$config['discovery_modules']['vmware-vminfo']        = false;
-$config['discovery_modules']['libvirt-vminfo']       = false;
-$config['discovery_modules']['toner']                = false;
-$config['discovery_modules']['ucd-diskio']           = true;
-$config['discovery_modules']['applications']         = false;
-$config['discovery_modules']['services']             = true;
-$config['discovery_modules']['stp']                  = true;
-$config['discovery_modules']['ntp']                  = true;
-$config['discovery_modules']['loadbalancers']        = false;
-$config['discovery_modules']['mef']                  = false;
-$config['discovery_modules']['wireless']             = true;
-$config['discovery_modules']['fdb-table']            = true;
-```
+!!! setting "discovery/discovery_modules"
+    ```bash
+    lnms config:set discovery_modules.os true
+    lnms config:set discovery_modules.ports true
+    lnms config:set discovery_modules.ports-stack true
+    lnms config:set discovery_modules.entity-physical true
+    lnms config:set discovery_modules.entity-state false
+    lnms config:set discovery_modules.processors true
+    lnms config:set discovery_modules.mempools true
+    lnms config:set discovery_modules.cisco-vrf-lite true
+    lnms config:set discovery_modules.cisco-mac-accounting false
+    lnms config:set discovery_modules.cisco-pw false
+    lnms config:set discovery_modules.vrf false
+    lnms config:set discovery_modules.cisco-cef false
+    lnms config:set discovery_modules.slas false
+    lnms config:set discovery_modules.cisco-otv false
+    lnms config:set discovery_modules.ipv4-addresses true
+    lnms config:set discovery_modules.ipv6-addresses true
+    lnms config:set discovery_modules.route false
+    lnms config:set discovery_modules.sensors true
+    lnms config:set discovery_modules.storage true
+    lnms config:set discovery_modules.hr-device true
+    lnms config:set discovery_modules.discovery-protocols true
+    lnms config:set discovery_modules.arp-table true
+    lnms config:set discovery_modules.discovery-arp false
+    lnms config:set discovery_modules.junose-atm-vp false
+    lnms config:set discovery_modules.bgp-peers true
+    lnms config:set discovery_modules.vlans true
+    lnms config:set discovery_modules.vminfo false
+    lnms config:set discovery_modules.printer-supplies false
+    lnms config:set discovery_modules.ucd-diskio true
+    lnms config:set discovery_modules.applications false
+    lnms config:set discovery_modules.services true
+    lnms config:set discovery_modules.stp true
+    lnms config:set discovery_modules.ntp true
+    lnms config:set discovery_modules.loadbalancers false
+    lnms config:set discovery_modules.mef false
+    lnms config:set discovery_modules.wireless true
+    lnms config:set discovery_modules.fdb-table true
+    lnms config:set discovery_modules.xdsl false
+    ```
 
 ## OS based Discovery config
 
-You can enable or disable modules for a specific OS by add
-corresponding line in `config.php` OS based settings have preference
+You can enable or disable modules for a specific OS by using
+`lnms config:set`. OS based settings have preference
 over global. Device based settings have preference over all others
 
 Discover performance improvement can be achieved by deactivating all
@@ -119,10 +128,11 @@ modules that are not supported by specific OS.
 
 E.g. to deactivate spanning tree but activate discovery-arp module for linux OS
 
-```php
-$config['os']['linux']['discovery_modules']['stp'] = false;
-$config['os']['linux']['discovery_modules']['discovery-arp'] = true;
-```
+!!! setting "discovery/discovery_modules"
+    ```bash
+    lnms config:set os.linux.discovery_modules.stp false
+    lnms config:set os.linux.discovery_modules.discovery-arp true
+    ```
 
 ## Discovery modules
 
@@ -132,6 +142,8 @@ $config['os']['linux']['discovery_modules']['discovery-arp'] = true;
 configured to be ignored by config options.
 
 `ports-stack`: Same as ports except for stacks.
+
+`xdsl`: Module to collect more metrics for xDSL interfaces.
 
 `entity-physical`: Module to pick up the devices hardware support.
 
@@ -146,8 +158,7 @@ configured to be ignored by config options.
 `ipv6-addresses`: IPv6 Address detection
 
 `route`: This module will load the routing table of the device. The default route
- limit is 1000 (configurable in config.php with
- ```$config['routes']['max_number'] = 1000;```), with history data.
+ limit is 1000 (configurable with `lnms config:set routes.max_number 1000`), with history data.
 
 `sensors`: Sensor detection such as Temperature, Humidity, Voltages + More
 
@@ -155,7 +166,7 @@ configured to be ignored by config options.
 
 `hr-device`: Processor and Memory support via HOST-RESOURCES-MIB.
 
-`discovery-protocols`: Auto discovery module for xDP, OSPF and BGP.
+`discovery-protocols`: Auto discovery module for xDP, OSPF, OSPFv3 and BGP.
 
 `arp-table`: Detection of the ARP table for the device.
 
@@ -178,61 +189,56 @@ device, with history data.
 
 `cisco-cef`: CEF detection and support.
 
-`cisco-sla`: SLA detection and support.
+`slas`: SLA detection and support.
 
-`vmware-vminfo`: Detection of vmware guests on an ESXi host
+`vminfo`: Detection of vm guests for VMware ESXi and libvert
 
-`libvirt-vminfo`: Detection of libvirt guests.
-
-`toner`: Toner levels support.
+`printer-supplies`: Toner levels support.
 
 `ucd-diskio`: Disk I/O support.
 
 `services`: *Nix services support.
 
-`charge`: APC Charge detection and support.
-
-# Running
+## Running
 
 Here are some examples of running discovery from within your install directory.
 
 ```bash
-./discovery.php -h localhost
+lnms device:discover localhost
 
-./discovery.php -h localhost -m ports
+lnms device:discover localhost -m ports
 ```
 
-# Debugging
+## Debugging
 
 To provide debugging output you will need to run the discovery process
-with the `-d` flag. You can do this either against all modules, single
+with the `-v` flag. You can do this either against all modules, single
 or multiple modules:
 
 All Modules
 
 ```bash
-./discovery.php -h localhost -d
+lnms device:discover localhost -vv
 ```
 
 Single Module
 
 ```bash
-./discovery.php -h localhost -m ports -d
+lnms device:discover localhost -m ports -vv
 ```
 
 Multiple Modules
 
 ```bash
-./discovery.php -h localhost -m ports,entity-physical -d
+lnms device:discover localhost -m ports,entity-physical -vv
 ```
 
-Using `-d` shouldn't output much sensitive information, `-v` will so
+Using `-vv` shouldn't output much sensitive information, `-vvv` will so
 it is then advisable to sanitise the output before pasting it
 somewhere as the debug output will contain snmp details amongst other
 items including port descriptions.
 
 The output will contain:
 
-DB Updates
-
-SNMP Response
+- DB Updates
+- SNMP Response

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Ciscowlc.php
  *
@@ -26,33 +27,39 @@
 namespace LibreNMS\OS;
 
 use App\Models\AccessPoint;
-use Illuminate\Support\Arr;
 use LibreNMS\Device\WirelessSensor;
+use LibreNMS\Interfaces\Data\DataStorageInterface;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessApCountDiscovery;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessClientsDiscovery;
 use LibreNMS\Interfaces\Polling\OSPolling;
 use LibreNMS\OS\Shared\Cisco;
 use LibreNMS\RRD\RrdDefinition;
+use SnmpQuery;
 
 class Ciscowlc extends Cisco implements
     OSPolling,
     WirelessClientsDiscovery,
     WirelessApCountDiscovery
 {
-    public function pollOS(): void
+    public function pollOS(DataStorageInterface $datastore): void
     {
-        $device = $this->getDeviceArray();
-        $stats = snmpwalk_cache_oid($device, 'bsnAPEntry', [], 'AIRESPACE-WIRELESS-MIB', null, '-OQUsb');
-        $radios = snmpwalk_cache_oid($device, 'bsnAPIfEntry', [], 'AIRESPACE-WIRELESS-MIB', null, '-OQUsb');
-        $APstats = snmpwalk_cache_oid($device, 'bsnApIfNoOfUsers', [], 'AIRESPACE-WIRELESS-MIB', null, '-OQUsxb');
-        $loadParams = snmpwalk_cache_oid($device, 'bsnAPIfLoadChannelUtilization', [], 'AIRESPACE-WIRELESS-MIB', null, '-OQUsb');
-        $interferences = snmpwalk_cache_oid($device, 'bsnAPIfInterferencePower', [], 'AIRESPACE-WIRELESS-MIB', null, '-OQUsb');
+        if (! $this->getDevice()->wirelessSensors()->where('sensor_class', 'ap-count')->exists()) {
+            return; // if ap count doesn't exist, skip this polling TODO replace with wireless controller module
+        }
 
-        $numAccessPoints = is_countable($stats) ? count($stats) : 0;
+        $device = $this->getDeviceArray();
+        $apNames = SnmpQuery::enumStrings()->walk('AIRESPACE-WIRELESS-MIB::bsnAPName')->table(1);
+        $radios = SnmpQuery::enumStrings()->walk('AIRESPACE-WIRELESS-MIB::bsnAPIfTable')->table(2);
+        SnmpQuery::walk('AIRESPACE-WIRELESS-MIB::bsnAPIfLoadChannelUtilization')->table(2, $radios);
+        $interferences = SnmpQuery::walk('AIRESPACE-WIRELESS-MIB::bsnAPIfInterferencePower')->table(3);
+
+        $numAccessPoints = count($apNames);
         $numClients = 0;
 
-        foreach (Arr::wrap($APstats) as $value) {
-            $numClients += $value['bsnApIfNoOfUsers'];
+        foreach ($radios as $radio) {
+            foreach ($radio as $slot) {
+                $numClients += $slot['AIRESPACE-WIRELESS-MIB::bsnApIfNoOfUsers'] ?? 0;
+            }
         }
 
         $rrd_def = RrdDefinition::make()
@@ -60,75 +67,78 @@ class Ciscowlc extends Cisco implements
             ->addDataset('NUMCLIENTS', 'GAUGE', 0, 12500000000);
 
         $fields = [
-            'NUMAPS'     => $numAccessPoints,
+            'NUMAPS' => $numAccessPoints,
             'NUMCLIENTS' => $numClients,
         ];
 
-        $tags = compact('rrd_def');
-        data_update($device, 'ciscowlc', $tags, $fields);
+        $tags = ['rrd_def' => $rrd_def];
+        $datastore->put($device, 'ciscowlc', $tags, $fields);
 
         $db_aps = $this->getDevice()->accessPoints->keyBy->getCompositeKey();
+        $valid_ap_ids = [];
 
-        foreach ($radios as $key => $value) {
-            $indexName = substr($key, 0, -2);
-            $channel = str_replace('ch', '', $value['bsnAPIfPhyChannelNumber'] ?? '');
+        foreach ($radios as $mac => $radio) {
+            foreach ($radio as $slot => $value) {
+                $channel = str_replace('ch', '', $value['AIRESPACE-WIRELESS-MIB::bsnAPIfPhyChannelNumber'] ?? '');
 
-            $ap = new AccessPoint([
-                'device_id' => $device['device_id'],
-                'name' => $stats[$indexName]['bsnAPName'] ?? '',
-                'radio_number' => Arr::first(explode('.', $key)),
-                'type' => $value['bsnAPIfType'] ?? '',
-                'mac_addr' => str_replace(' ', ':', $stats[$indexName]['bsnAPDot3MacAddress'] ?? ''),
-                'channel' => $channel,
-                'txpow' => $value['bsnAPIfPhyTxPowerLevel'] ?? 0,
-                'radioutil' => $loadParams[$key]['bsnAPIfLoadChannelUtilization'] ?? 0,
-                'numasoclients' => $value['bsnApIfNoOfUsers'] ?? 0,
-                'nummonclients' => 0,
-                'nummonbssid' => 0,
-                'interference' => 128 + ($interferences[$key . '.' . $channel]['bsnAPIfInterferencePower'] ?? -128),
-            ]);
+                $ap = new AccessPoint([
+                    'device_id' => $this->getDeviceId(),
+                    'name' => $apNames[$mac]['AIRESPACE-WIRELESS-MIB::bsnAPName'] ?? '',
+                    'radio_number' => $slot,
+                    'type' => $value['AIRESPACE-WIRELESS-MIB::bsnAPIfType'] ?? '',
+                    'mac_addr' => $mac,
+                    'channel' => $channel,
+                    'txpow' => $value['AIRESPACE-WIRELESS-MIB::bsnAPIfPhyTxPowerLevel'] ?? 0,
+                    'radioutil' => $value['AIRESPACE-WIRELESS-MIB::bsnAPIfLoadChannelUtilization'] ?? 0,
+                    'numasoclients' => $value['AIRESPACE-WIRELESS-MIB::bsnApIfNoOfUsers'] ?? 0,
+                    'nummonclients' => 0,
+                    'nummonbssid' => 0,
+                    'interference' => 128 + ($interferences[$mac][$slot][$channel]['AIRESPACE-WIRELESS-MIB::bsnAPIfInterferencePower'] ?? -128), // why are we adding 128?
+                ]);
 
-            d_echo($ap->toArray());
+                d_echo($ap->toArray());
 
-            // if there is a numeric channel, assume the rest of the data is valid, I guess
-            if (! is_numeric($ap->channel)) {
-                continue;
+                // if there is a numeric channel, assume the rest of the data is valid, I guess
+                if (! is_numeric($channel)) {
+                    continue;
+                }
+
+                $rrd_def = RrdDefinition::make()
+                    ->addDataset('channel', 'GAUGE', 0, 200)
+                    ->addDataset('txpow', 'GAUGE', 0, 200)
+                    ->addDataset('radioutil', 'GAUGE', 0, 100)
+                    ->addDataset('nummonclients', 'GAUGE', 0, 500)
+                    ->addDataset('nummonbssid', 'GAUGE', 0, 200)
+                    ->addDataset('numasoclients', 'GAUGE', 0, 500)
+                    ->addDataset('interference', 'GAUGE', 0, 2000);
+
+                $datastore->put($device, 'arubaap', [
+                    'name' => $ap->name,
+                    'radionum' => $ap->radio_number,
+                    'rrd_name' => ['arubaap', $ap->name . $ap->radio_number],
+                    'rrd_def' => $rrd_def,
+                ], $ap->only([
+                    'channel',
+                    'txpow',
+                    'radioutil',
+                    'nummonclients',
+                    'nummonbssid',
+                    'numasoclients',
+                    'interference',
+                ]));
+
+                /** @var AccessPoint $db_ap */
+                if ($db_ap = $db_aps->get($ap->getCompositeKey())) {
+                    $ap = $db_ap->fill($ap->getAttributes());
+                }
+
+                $ap->save(); // persist ap
+                $valid_ap_ids[] = $ap->accesspoint_id;
             }
-
-            $rrd_def = RrdDefinition::make()
-                ->addDataset('channel', 'GAUGE', 0, 200)
-                ->addDataset('txpow', 'GAUGE', 0, 200)
-                ->addDataset('radioutil', 'GAUGE', 0, 100)
-                ->addDataset('nummonclients', 'GAUGE', 0, 500)
-                ->addDataset('nummonbssid', 'GAUGE', 0, 200)
-                ->addDataset('numasoclients', 'GAUGE', 0, 500)
-                ->addDataset('interference', 'GAUGE', 0, 2000);
-
-            data_update($device, 'arubaap', [
-                'name' => $ap->name,
-                'radionum' => $ap->radio_number,
-                'rrd_name' => ['arubaap', $ap->name . $ap->radio_number],
-                'rrd_dev' => $rrd_def,
-            ], $ap->only([
-                'channel',
-                'txpow',
-                'radioutil',
-                'nummonclients',
-                'nummonbssid',
-                'numasoclients',
-                'interference',
-            ]));
-
-            /** @var AccessPoint $db_ap */
-            if ($db_ap = $db_aps->get($ap->getCompositeKey())) {
-                $db_aps->forget($ap->getCompositeKey());
-                $ap = $db_ap->fill($ap->getAttributes());
-            }
-
-            $ap->save(); // persist ap
         }
 
-        $db_aps->each->delete(); // delete those not removed
+        // delete invalid aps
+        $this->getDevice()->accessPoints->whereNotIn('accesspoint_id', $valid_ap_ids)->each->delete();
     }
 
     /**
@@ -139,8 +149,16 @@ class Ciscowlc extends Cisco implements
      */
     public function discoverWirelessClients()
     {
-        $ssids = $this->getCacheByIndex('bsnDot11EssSsid', 'AIRESPACE-WIRELESS-MIB');
         $counts = $this->getCacheByIndex('bsnDot11EssNumberOfMobileStations', 'AIRESPACE-WIRELESS-MIB');
+        if (empty($counts)) {
+            return []; // no counts to be had
+        }
+
+        $ssids = $this->getCacheByIndex('bsnDot11EssSsid', 'AIRESPACE-WIRELESS-MIB');
+        if (empty($ssids)) {
+            //  Try to check the LWAPP mib
+            $ssids = $this->getCacheByIndex('cLWlanSsid', 'CISCO-LWAPP-WLAN-MIB');
+        }
 
         $sensors = [];
         $total_oids = [];
@@ -161,17 +179,15 @@ class Ciscowlc extends Cisco implements
             );
         }
 
-        if (! empty($counts)) {
-            $sensors[] = new WirelessSensor(
-                'clients',
-                $this->getDeviceId(),
-                $total_oids,
-                'ciscowlc',
-                0,
-                'Clients: Total',
-                $total
-            );
-        }
+        $sensors[] = new WirelessSensor(
+            'clients',
+            $this->getDeviceId(),
+            $total_oids,
+            'ciscowlc',
+            0,
+            'Clients: Total',
+            $total
+        );
 
         return $sensors;
     }
@@ -182,15 +198,36 @@ class Ciscowlc extends Cisco implements
      *
      * @return array Sensors
      */
-    public function discoverWirelessApCount()
+    public function discoverWirelessApCount(): array
     {
-        $oids = [
+        $data = SnmpQuery::get([
             'CISCO-LWAPP-SYS-MIB::clsSysApConnectCount.0',
             'AIRESPACE-SWITCHING-MIB::agentInventoryMaxNumberOfAPsSupported.0',
-        ];
-        $data = snmp_get_multi($this->getDeviceArray(), $oids);
+            'CISCO-LWAPP-AP-MIB::cLApGlobalAPConnectCount.0',
+            'CISCO-LWAPP-AP-MIB::cLApGlobalMaxApsSupported.0',
+        ])->values();
 
-        if (isset($data[0]['clsSysApConnectCount'])) {
+        if (isset($data['CISCO-LWAPP-AP-MIB::cLApGlobalAPConnectCount.0'])) {
+            return [
+                new WirelessSensor(
+                    'ap-count',
+                    $this->getDeviceId(),
+                    '.1.3.6.1.4.1.9.9.513.1.3.35.0',
+                    'ciscowlc',
+                    0,
+                    'Connected APs',
+                    $data['CISCO-LWAPP-AP-MIB::cLApGlobalAPConnectCount.0'],
+                    1,
+                    1,
+                    'sum',
+                    null,
+                    $data['CISCO-LWAPP-AP-MIB::cLApGlobalMaxApsSupported.0'],
+                    0
+                ),
+            ];
+        }
+
+        if (isset($data['CISCO-LWAPP-SYS-MIB::clsSysApConnectCount.0'])) {
             return [
                 new WirelessSensor(
                     'ap-count',
@@ -199,12 +236,12 @@ class Ciscowlc extends Cisco implements
                     'ciscowlc',
                     0,
                     'Connected APs',
-                    $data[0]['clsSysApConnectCount'],
+                    $data['CISCO-LWAPP-SYS-MIB::clsSysApConnectCount.0'],
                     1,
                     1,
                     'sum',
                     null,
-                    $data[0]['agentInventoryMaxNumberOfAPsSupported'],
+                    $data['AIRESPACE-SWITCHING-MIB::agentInventoryMaxNumberOfAPsSupported.0'],
                     0
                 ),
             ];

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Aos6CfgSavedTrap.php
  *
@@ -33,7 +34,6 @@ namespace LibreNMS\Snmptrap\Handlers;
 use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class Aos6CfgSavedTrap implements SnmptrapHandler
 {
@@ -48,6 +48,6 @@ class Aos6CfgSavedTrap implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $descr = $trap->getOidData($trap->findOid('ALCATEL-IND1-CONFIG-MGR-MIB::alcatelIND1ConfigMgrMIB.3.1.1'));
-        Log::event("$descr", $device->device_id, 'trap', 2);
+        $trap->log("$descr");
     }
 }

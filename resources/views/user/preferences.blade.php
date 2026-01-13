@@ -46,7 +46,7 @@
                 </div>
             </div>
             <div class="form-group">
-                <div class="col-sm-4 col-sm-offset-3">
+                <div class="col-sm-4 col-sm-offset-4">
                     <button type="submit" class="btn btn-default">{{ __('Change Password') }}</button>
                 </div>
             </div>
@@ -68,7 +68,7 @@
                 </div>
             </div>
             <div class="form-group">
-                <label for="site_style" class="col-sm-4 control-label">{{ __('CSS Style') }}</label>
+                <label for="site_style" class="col-sm-4 control-label">{{ __('preferences.theme') }}</label>
                 <div class="col-sm-4">
                     <select class="form-control ajax-select" name="site_style" data-pref="site_style" data-previous="{{ $site_style }}">
                         <option value="default">{{ __('Default') }} ({{ $site_style_default }})</option>
@@ -93,13 +93,52 @@
                 </div>
             </div>
             <div class="form-group">
+                <label for="timezone" class="col-sm-4 control-label">{{ __('Timezone') }}</label>
+                <div class="col-sm-4">
+                    <select class="form-control ajax-select" name="timezone" data-pref="timezone" data-previous="{{ $timezone }}">
+                        <option value="default">Browser Timezone</option>
+                        @foreach(timezone_identifiers_list() as $tz)
+                            <option value="{{ $tz }}" @if($timezone == $tz) selected @endif>{{ $tz }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="temp_units" class="col-sm-4 control-label">{{ __('Temperature Units') }}</label>
+                <div class="col-sm-4">
+                    <select class="form-control ajax-select" name="temperature" data-pref="temp_units" data-previous="{{ $temp_units }}">
+                        <option value="default">{{ __('Celsius') }}</option>
+                        <option value="f" @if($temp_units == 'f') selected @endif>{{ __('Fahrenheit') }}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
                 <label for="notetodevice" class="col-sm-4 control-label">{{ __('Add schedule notes to devices notes') }}</label>
                 <div class="col-sm-4">
                     <input id="notetodevice" type="checkbox" name="notetodevice" @if($note_to_device) checked @endif>
                 </div>
             </div>
+            <div class="form-group">
+                <label for="global_search_ctrlf_focus" class="col-sm-4 control-label">{{ __('Ctrl-F to focus the global search bar') }}</label>
+                <div class="col-sm-4">
+                    <input id="global_search_ctrlf_focus" type="checkbox" name="global_search_ctrlf_focus" @if($global_search_ctrlf_focus) checked @endif>
+                </div>
+            </div>
         </form>
     </x-panel>
+
+    @config('auth.socialite.configs')
+    <x-panel title="{{ __('OAuth/SAML Authentication') }}">
+        @foreach (\App\Facades\LibrenmsConfig::get('auth.socialite.configs', []) as $provider => $config)
+        <form role="form" action="{{ route('socialite.redirect', $provider) }}" method="post">
+            {{ csrf_field() }}
+            <button type="submit" id="login" class="btn btn-success btn-block">
+                <i class="fab fa-btn fa-{{ $provider }}"></i> {{ __('Register with') }} {{ ucfirst($provider) }}
+            </button>
+        </form>
+        @endforeach
+    </x-panel>
+    @endconfig
 
     @config('twofactor')
     <x-panel title="{{ __('Two-Factor Authentication') }}">
@@ -147,7 +186,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <div class="col-sm-4 col-sm-offset-3">
+                    <div class="col-sm-4 col-sm-offset-4">
                         <button class="btn btn-default" type="submit" id="twofactor-generate">{{ __('Generate TwoFactor Secret Key') }}</button>
                     </div>
                 </div>
@@ -156,10 +195,18 @@
     </x-panel>
     @endconfig
 
+    <x-panel title="{{ __('Roles') }}">
+        @forelse($user->roles->map(fn($r) => Str::title(str_replace('-', ' ', $r->name))) as $role)
+            <span class="label label-info tw:mr-1">{{ $role }}</span>
+        @empty
+            <strong class="red">{{ __('No roles!') }}</strong>
+        @endforelse
+    </x-panel>
+
     <x-panel title="{{ __('Device Permissions') }}">
-        @if(auth()->user()->hasGlobalAdmin())
+        @if($user->can('global-admin'))
             <strong class="blue">{{ __('Global Administrative Access') }}</strong>
-        @elseif(auth()->user()->hasGlobalRead())
+        @elseif($user->can('global-read'))
             <strong class="green">{{ __('Global Viewing Access') }}</strong>
         @else
             @forelse($devices as $device)
@@ -206,6 +253,34 @@
                 });
             });
 
+        $("[name='global_search_ctrlf_focus']")
+            .bootstrapSwitch('offColor', 'danger')
+            .on('switchChange.bootstrapSwitch', function (e, state) {
+                var $this = $(this);
+                $.ajax({
+                    url: '{{ route('preferences.store') }}',
+                    dataType: 'json',
+                    type: 'POST',
+                    data: {
+                        pref: 'global_search_ctrlf_focus',
+                        value: state ? 1 : 0
+                    },
+                    success: function () {
+                        $this.closest('.form-group').addClass('has-success');
+                        setTimeout(function () {
+                            $this.closest('.form-group').removeClass('has-success');
+                        }, 2000);
+                    },
+                    error: function () {
+                        $this.bootstrapSwitch('toggleState', true);
+                        $this.closest('.form-group').addClass('has-error');
+                        setTimeout(function(){
+                            $this.closest('.form-group').removeClass('has-error');
+                        }, 2000);
+                    }
+                });
+            });
+
         $('.ajax-select').on("change", function () {
             var $this = $(this);
             var value = $this.val();
@@ -224,6 +299,14 @@
                     }
                     if (pref === 'site_style') {
                         location.reload();
+                    }
+                    if (pref === 'timezone') {
+                        if(value === 'default') {
+                            var tz = window.Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            updateTimezone(tz, false);
+                        } else {
+                            updateTimezone(value, true);
+                        }
                     }
 
                     $this.data('previous', value);

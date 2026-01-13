@@ -3,9 +3,6 @@
 use LibreNMS\RRD\RrdDefinition;
 
 $name = 'icecast';
-$app_id = $app['app_id'];
-
-echo "$name, app_id=$app_id ";
 
 if (! empty($agent_data[$name])) {
     $rawdata = $agent_data[$name];
@@ -18,7 +15,7 @@ if (! empty($agent_data[$name])) {
     $rawdata = str_replace("<<<icecast>>>\n", '', $rawdata);
 }
 
-$lines = explode("\n", $rawdata);
+$lines = explode("\n", (string) $rawdata);
 
 $icecast = [];
 
@@ -29,20 +26,24 @@ foreach ($lines as $line) {
 
 unset($lines);
 
-$rrd_name = ['app', $name, $app_id];
 $rrd_def = RrdDefinition::make()
     ->addDataset('cpu', 'GAUGE', 0, 100)
     ->addDataset('kbyte', 'GAUGE', 0, 125000000000)
     ->addDataset('openfiles', 'GAUGE', 0, 125000000000);
 
 $fields = [
-    'cpu' => (float) $icecast['CPU Load'],
-    'kbyte' => (int) $icecast['Used Memory'],
-    'openfiles' => (int) $icecast['Open files'],
+    'cpu' => isset($icecast['CPU Load']) ? (float) $icecast['CPU Load'] : null,
+    'kbyte' => isset($icecast['Used Memory']) ? (int) $icecast['Used Memory'] : null,
+    'openfiles' => isset($icecast['Open files']) ? (int) $icecast['Open files'] : null,
 ];
 
-$tags = compact('name', 'app_id', 'rrd_name', 'rrd_def');
+$tags = [
+    'name' => $name,
+    'app_id' => $app->app_id,
+    'rrd_name' => ['app', $name, $app->app_id],
+    'rrd_def' => $rrd_def,
+];
 
-data_update($device, 'app', $tags, $fields);
+app('Datastore')->put($device, 'app', $tags, $fields);
 
 update_application($app, $rawdata, $fields);

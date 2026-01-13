@@ -1,5 +1,8 @@
 <?php
 
+use LibreNMS\Billing;
+use LibreNMS\Util\Number;
+
 $pagetitle[] = 'Bandwidth Graphs';
 
 // $bill_data          = dbFetchRow("SELECT * FROM bills WHERE bill_id = ?", array($bill_id));
@@ -20,8 +23,8 @@ $total_data = $bill_data['total_data'];
 $in_data = $bill_data['total_data_in'];
 $out_data = $bill_data['total_data_out'];
 
-$fromtext = dbFetchCell("SELECT DATE_FORMAT($datefrom, '" . \LibreNMS\Config::get('dateformat.mysql.date') . "')");
-$totext = dbFetchCell("SELECT DATE_FORMAT($dateto, '" . \LibreNMS\Config::get('dateformat.mysql.date') . "')");
+$fromtext = dbFetchCell("SELECT DATE_FORMAT($datefrom, '" . \App\Facades\LibrenmsConfig::get('dateformat.mysql.date') . "')");
+$totext = dbFetchCell("SELECT DATE_FORMAT($dateto, '" . \App\Facades\LibrenmsConfig::get('dateformat.mysql.date') . "')");
 $unixfrom = dbFetchCell("SELECT UNIX_TIMESTAMP('$datefrom')");
 $unixto = dbFetchCell("SELECT UNIX_TIMESTAMP('$dateto')");
 $unix_prev_from = dbFetchCell("SELECT UNIX_TIMESTAMP('$lastfrom')");
@@ -30,46 +33,49 @@ $lastmonth = dbFetchCell('SELECT UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 MONTH
 $yesterday = dbFetchCell('SELECT UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))');
 $rightnow = date('U');
 
-$cur_days = date('d', (strtotime('now') - strtotime($datefrom)));
-$total_days = round((strtotime($dateto) - strtotime($datefrom)) / (60 * 60 * 24));
+$cur_days = date('d', (strtotime('now') - strtotime((string) $datefrom)));
+$total_days = round((strtotime((string) $dateto) - strtotime((string) $datefrom)) / (60 * 60 * 24));
 
-$total['data'] = format_bytes_billing($bill_data['total_data']);
+$total['data'] = Billing::formatBytes($bill_data['total_data']);
 if ($bill_data['bill_type'] == 'quota') {
-    $total['allow'] = format_bytes_billing($bill_data['bill_quota']);
+    $total['allow'] = Billing::formatBytes($bill_data['bill_quota']);
 } else {
     $total['allow'] = '-';
 }
 
-$total['ave'] = format_bytes_billing(($bill_data['total_data'] / $cur_days));
-$total['est'] = format_bytes_billing(($bill_data['total_data'] / $cur_days * $total_days));
+$total['ave'] = Billing::formatBytes(($bill_data['total_data'] / $cur_days));
+$total['est'] = Billing::formatBytes(($bill_data['total_data'] / $cur_days * $total_days));
 if ($bill_data['bill_type'] == 'quota') {
-    $total['per'] = round(($bill_data['total_data'] / $bill_data['bill_quota'] * 100), 2);
+    $total['per'] = Number::calculatePercent($bill_data['total_data'], $bill_data['bill_quota']);
 } else {
-    $total['per'] = round(($bill_data['total_data'] / ($bill_data['total_data'] / $cur_days * $total_days) * 100), 2);
+    $total['per'] = Number::calculatePercent($bill_data['total_data'], $bill_data['total_data'] / $cur_days * $total_days);
 }
 $total['bg'] = \LibreNMS\Util\Color::percentage($total['per'], null);
 
-$in['data'] = format_bytes_billing($bill_data['total_data_in']);
+$in = [];
+$in['data'] = Billing::formatBytes($bill_data['total_data_in']);
 $in['allow'] = $total['allow'];
-$in['ave'] = format_bytes_billing(($bill_data['total_data_in'] / $cur_days));
-$in['est'] = format_bytes_billing(($bill_data['total_data_in'] / $cur_days * $total_days));
-$in['per'] = ! empty($bill_data['total_data']) ? round(($bill_data['total_data_in'] / $bill_data['total_data'] * 100), 2) : 0;
+$in['ave'] = Billing::formatBytes(($bill_data['total_data_in'] / $cur_days));
+$in['est'] = Billing::formatBytes(($bill_data['total_data_in'] / $cur_days * $total_days));
+$in['per'] = Number::calculatePercent($bill_data['total_data_in'], $bill_data['total_data']);
 $in['bg'] = \LibreNMS\Util\Color::percentage($in['per'], null);
 
-$out['data'] = format_bytes_billing($bill_data['total_data_out']);
+$out = [];
+$out['data'] = Billing::formatBytes($bill_data['total_data_out']);
 $out['allow'] = $total['allow'];
-$out['ave'] = format_bytes_billing(($bill_data['total_data_out'] / $cur_days));
-$out['est'] = format_bytes_billing(($bill_data['total_data_out'] / $cur_days * $total_days));
-$out['per'] = ! empty($bill_data['total_data']) ? round(($bill_data['total_data_out'] / $bill_data['total_data'] * 100), 2) : 0;
+$out['ave'] = Billing::formatBytes(($bill_data['total_data_out'] / $cur_days));
+$out['est'] = Billing::formatBytes(($bill_data['total_data_out'] / $cur_days * $total_days));
+$out['per'] = Number::calculatePercent($bill_data['total_data_out'], $bill_data['total_data']);
 $out['bg'] = \LibreNMS\Util\Color::percentage($out['per'], null);
 
+$ousage = [];
 $ousage['over'] = ($bill_data['total_data'] - ($bill_data['bill_quota']));
 $ousage['over'] = (($ousage['over'] < 0) ? '0' : $ousage['over']);
-$ousage['data'] = \LibreNMS\Util\Number::formatBase($ousage['over'], \LibreNMS\Config::get('billing.base'), 2, 3, '');
+$ousage['data'] = \LibreNMS\Util\Number::formatBase($ousage['over'], \App\Facades\LibrenmsConfig::get('billing.base'), 2, 0, '');
 $ousage['allow'] = $total['allow'];
-$ousage['ave'] = format_bytes_billing(($ousage['over'] / $cur_days));
-$ousage['est'] = format_bytes_billing(($ousage['over'] / $cur_days * $total_days));
-$ousage['per'] = round((($bill_data['total_data'] / $bill_data['bill_quota'] * 100) - 100), 2);
+$ousage['ave'] = Billing::formatBytes(($ousage['over'] / $cur_days));
+$ousage['est'] = Billing::formatBytes(($ousage['over'] / $cur_days * $total_days));
+$ousage['per'] = Number::calculatePercent($bill_data['total_data'], $bill_data['bill_quota']) - 100;
 $ousage['per'] = (($ousage['per'] < 0) ? '0' : $ousage['per']);
 $ousage['bg'] = \LibreNMS\Util\Color::percentage($ousage['per'], null);
 
@@ -78,7 +84,12 @@ function showPercent($per)
     $background = \LibreNMS\Util\Color::percentage($per, null);
     $right_background = $background['right'];
     $left_background = $background['left'];
-    $res = print_percentage_bar(200, 20, $per, null, 'ffffff', $left_background, $per . '%', 'ffffff', $right_background);
+    $res = \LibreNMS\Util\Html::percentageBar(200, 10, $per, null, $per . '%', null, null, [
+        'left' => $left_background,
+        'left_text' => null,
+        'right' => $right_background,
+        'right_text' => null,
+    ]);
 
     return $res;
 }//end showPercent()
@@ -163,7 +174,7 @@ $bi .= '&amp;width=1190&amp;height=250';
 $bi .= "'>";
 
 $di = "<img src='graph.php?type=bill_historictransfer&id=" . $bill_id;
-$di .= '&amp;from=' . \LibreNMS\Config::get('time.day') . '&amp;to=' . \LibreNMS\Config::get('time.now');
+$di .= '&amp;from=' . \App\Facades\LibrenmsConfig::get('time.day') . '&amp;to=' . \App\Facades\LibrenmsConfig::get('time.now');
 $di .= '&amp;imgtype=hour';
 $di .= '&amp;width=1190&amp;height=250';
 $di .= "'>";

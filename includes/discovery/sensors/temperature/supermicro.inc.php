@@ -2,7 +2,7 @@
 
 // Supermicro sensors
 $oids = snmp_walk($device, '.1.3.6.1.4.1.10876.2.1.1.1.1.3', '-Osqn', 'SUPERMICRO-HEALTH-MIB', 'supermicro');
-$oids = trim($oids);
+$oids = trim((string) $oids);
 if ($oids) {
     echo 'Supermicro ';
     foreach (explode("\n", $oids) as $data) {
@@ -10,7 +10,7 @@ if ($oids) {
         if ($data) {
             [$oid, $type] = explode(' ', $data);
             $oid_ex = explode('.', $oid);
-            $index = $oid_ex[(count($oid_ex) - 1)];
+            $index = $oid_ex[count($oid_ex) - 1];
             if ($type == 2) {
                 $temperature_oid = ".1.3.6.1.4.1.10876.2.1.1.1.1.4.$index";
                 $descr_oid = ".1.3.6.1.4.1.10876.2.1.1.1.1.2.$index";
@@ -24,7 +24,7 @@ if ($oids) {
                 $monitor = snmp_get($device, $monitor_oid, '-Oqv', 'SUPERMICRO-HEALTH-MIB', 'supermicro');
                 if ($monitor == 'true') {
                     $descr = trim(str_ireplace('temperature', '', $descr));
-                    discover_sensor($valid['sensor'], 'temperature', $device, $temperature_oid, trim($index, '.'), 'supermicro', $descr, (int) $divisor, '1', null, null, null, $limit, $temperature);
+                    discover_sensor(null, 'temperature', $device, $temperature_oid, trim($index, '.'), 'supermicro', $descr, (int) $divisor, '1', null, null, null, $limit, $temperature);
                 }
             }
         }

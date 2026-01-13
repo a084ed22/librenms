@@ -1,4 +1,5 @@
 <?php
+
 /**
  * AlertUtil.php
  *
@@ -25,10 +26,14 @@
 
 namespace LibreNMS\Alert;
 
+use App\Facades\LibrenmsConfig;
 use App\Models\Device;
+use App\Models\DeviceGroup;
 use App\Models\User;
 use DeviceCache;
-use LibreNMS\Config;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
+use LibreNMS\Enum\MaintenanceStatus;
 use PHPMailer\PHPMailer\PHPMailer;
 
 class AlertUtil
@@ -83,65 +88,34 @@ class AlertUtil
         if (empty($results)) {
             return [];
         }
-        if (Config::get('alert.default_only') === true || Config::get('alerts.email.default_only') === true) {
-            $email = Config::get('alert.default_mail', Config::get('alerts.email.default'));
+
+        if (LibrenmsConfig::get('alert.default_only') === true || LibrenmsConfig::get('alerts.email.default_only') === true) {
+            $email = LibrenmsConfig::get('alert.default_mail', LibrenmsConfig::get('alerts.email.default'));
 
             return $email ? [$email => ''] : [];
         }
-        $users = User::query()->thisAuth()->get();
+
         $contacts = [];
-        $uids = [];
-        foreach ($results as $result) {
-            $tmp = null;
-            if (isset($result['bill_id']) && is_numeric($result['bill_id'])) {
-                $tmpa = dbFetchRows('SELECT user_id FROM bill_perms WHERE bill_id = ?', [$result['bill_id']]);
-                foreach ($tmpa as $tmp) {
-                    $uids[$tmp['user_id']] = $tmp['user_id'];
-                }
-            }
-            if (isset($result['port_id']) && is_numeric($result['port_id'])) {
-                $tmpa = dbFetchRows('SELECT user_id FROM ports_perms WHERE port_id = ?', [$result['port_id']]);
-                foreach ($tmpa as $tmp) {
-                    $uids[$tmp['user_id']] = $tmp['user_id'];
-                }
-            }
-            if (isset($result['device_id']) && is_numeric($result['device_id'])) {
-                if (Config::get('alert.syscontact') == true) {
-                    if (dbFetchCell("SELECT attrib_value FROM devices_attribs WHERE attrib_type = 'override_sysContact_bool' AND device_id = ?", [$result['device_id']])) {
-                        $tmpa = dbFetchCell("SELECT attrib_value FROM devices_attribs WHERE attrib_type = 'override_sysContact_string' AND device_id = ?", [$result['device_id']]);
-                    } else {
-                        $tmpa = dbFetchCell('SELECT sysContact FROM devices WHERE device_id = ?', [$result['device_id']]);
-                    }
-                    if (! empty($tmpa)) {
-                        $contacts[$tmpa] = '';
-                    }
-                }
-                $tmpa = dbFetchRows('SELECT user_id FROM devices_perms WHERE device_id = ?', [$result['device_id']]);
-                foreach ($tmpa as $tmp) {
-                    $uids[$tmp['user_id']] = $tmp['user_id'];
-                }
-            }
+
+        if (LibrenmsConfig::get('alert.syscontact')) {
+            $contacts = array_merge($contacts, self::findContactsSysContact($results));
         }
-        foreach ($users as $user) {
-            if (empty($user['email'])) {
-                continue; // no email, skip this user
-            }
-            if (empty($user['realname'])) {
-                $user['realname'] = $user['username'];
-            }
-            if (Config::get('alert.globals') && ($user['level'] >= 5 && $user['level'] < 10)) {
-                $contacts[$user['email']] = $user['realname'];
-            } elseif (Config::get('alert.admins') && $user['level'] == 10) {
-                $contacts[$user['email']] = $user['realname'];
-            } elseif (Config::get('alert.users') == true && in_array($user['user_id'], $uids)) {
-                $contacts[$user['email']] = $user['realname'];
-            }
+
+        if (LibrenmsConfig::get('alert.users')) {
+            $contacts = array_merge($contacts, self::findContactsOwners($results));
+        }
+
+        $roles = LibrenmsConfig::get('alert.globals')
+            ? ['admin', 'global-read']
+            : (LibrenmsConfig::get('alert.admins') ? ['admin'] : []);
+        if ($roles) {
+            $contacts = array_merge($contacts, self::findContactsRoles($roles));
         }
 
         $tmp_contacts = [];
         foreach ($contacts as $email => $name) {
-            if (strstr($email, ',')) {
-                $split_contacts = preg_split('/[,\s]+/', $email);
+            if (strstr((string) $email, ',')) {
+                $split_contacts = preg_split('/[,\s]+/', (string) $email);
                 foreach ($split_contacts as $split_email) {
                     if (! empty($split_email)) {
                         $tmp_contacts[$split_email] = $name;
@@ -163,16 +137,53 @@ class AlertUtil
         }
 
         // Copy all email alerts to default contact if configured.
-        $default_mail = Config::get('alert.default_mail');
-        if (! isset($tmp_contacts[$default_mail]) && Config::get('alert.default_copy')) {
+        $default_mail = LibrenmsConfig::get('alert.default_mail');
+        if (! isset($tmp_contacts[$default_mail]) && LibrenmsConfig::get('alert.default_copy')) {
             $tmp_contacts[$default_mail] = '';
         }
         // Send email to default contact if no other contact found
-        if (empty($tmp_contacts) && Config::get('alert.default_if_none') && $default_mail) {
+        if (empty($tmp_contacts) && LibrenmsConfig::get('alert.default_if_none') && $default_mail) {
             $tmp_contacts[$default_mail] = '';
         }
 
         return $tmp_contacts;
+    }
+
+    public static function findContactsRoles(array $roles): array
+    {
+        return User::role($roles)->whereNot('email', '')->pluck('realname', 'email')->toArray();
+    }
+
+    public static function findContactsSysContact(array $results): array
+    {
+        $contacts = [];
+
+        foreach ($results as $result) {
+            $device = DeviceCache::get($result['device_id']);
+            $email = $device->getAttrib('override_sysContact_bool')
+                ? $device->getAttrib('override_sysContact_string')
+                : $device->sysContact;
+            $contacts[$email] = '';
+        }
+
+        return $contacts;
+    }
+
+    public static function findContactsOwners(array $results): array
+    {
+        return User::whereNot('email', '')->where(function (Builder $query) use ($results): void {
+            if ($device_ids = array_filter(Arr::pluck($results, 'device_id'))) {
+                $query->orWhereHas('devicesOwned', fn ($q) => $q->whereIn('devices_perms.device_id', $device_ids));
+                // Find all device groups that users have been granted access to where the device group also contains at least one device that we are looking for
+                $query->orWhereHas('deviceGroups', fn ($q) => $q->whereIn('device_groups.id', DeviceGroup::WhereHas('devices', fn ($dq) => $dq->whereIn('devices.device_id', $device_ids))->pluck('device_groups.id')));
+            }
+            if ($port_ids = array_filter(Arr::pluck($results, 'port_id'))) {
+                $query->orWhereHas('portsOwned', fn ($q) => $q->whereIn('ports_perms.port_id', $port_ids));
+            }
+            if ($bill_ids = array_filter(Arr::pluck($results, 'bill_id'))) {
+                $query->orWhereHas('bills', fn ($q) => $q->whereIn('bill_perms.bill_id', $bill_ids));
+            }
+        })->pluck('realname', 'email')->all();
     }
 
     public static function getRules($device_id)
@@ -181,14 +192,15 @@ class AlertUtil
         LEFT JOIN alert_device_map d ON a.id=d.rule_id AND (a.invert_map = 0 OR a.invert_map = 1 AND d.device_id = ?)
         LEFT JOIN alert_group_map g ON a.id=g.rule_id AND (a.invert_map = 0 OR a.invert_map = 1 AND g.group_id IN (SELECT DISTINCT device_group_id FROM device_group_device WHERE device_id = ?))
         LEFT JOIN alert_location_map l ON a.id=l.rule_id AND (a.invert_map = 0 OR a.invert_map = 1 AND l.location_id IN (SELECT DISTINCT location_id FROM devices WHERE device_id = ?))
+        LEFT JOIN devices ld ON l.location_id=ld.location_id AND ld.device_id = ?
         LEFT JOIN device_group_device dg ON g.group_id=dg.device_group_id AND dg.device_id = ?
         WHERE a.disabled = 0 AND (
-            (d.device_id IS NULL AND g.group_id IS NULL)
-            OR (a.invert_map = 0 AND (d.device_id=? OR dg.device_id=?))
-            OR (a.invert_map = 1  AND (d.device_id != ? OR d.device_id IS NULL) AND (dg.device_id != ? OR dg.device_id IS NULL))
+            (d.device_id IS NULL AND g.group_id IS NULL AND l.location_id IS NULL)
+            OR (a.invert_map = 0 AND (d.device_id=? OR dg.device_id=? OR ld.device_id=?))
+            OR (a.invert_map = 1  AND (d.device_id != ? OR d.device_id IS NULL) AND (dg.device_id != ? OR dg.device_id IS NULL) AND (ld.device_id != ? OR ld.device_id IS NULL))
         )';
 
-        $params = [$device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id];
+        $params = [$device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id, $device_id];
 
         return dbFetchRows($query, $params);
     }
@@ -197,11 +209,11 @@ class AlertUtil
      * Check if device is under maintenance
      *
      * @param  int  $device_id  Device-ID
-     * @return bool
+     * @return MaintenanceStatus
      */
-    public static function isMaintenance($device_id)
+    public static function getMaintenanceStatus($device_id): MaintenanceStatus
     {
-        return DeviceCache::get($device_id)->isUnderMaintenance();
+        return DeviceCache::get($device_id)->getMaintenanceStatus();
     }
 
     /**
@@ -226,10 +238,10 @@ class AlertUtil
      */
     public static function runMacros($rule, $x = 1)
     {
-        $macros = Config::get('alert.macros.rule', []);
+        $macros = LibrenmsConfig::get('alert.macros.rule', []);
         krsort($macros);
         foreach ($macros as $macro => $value) {
-            if (! strstr($macro, ' ')) {
+            if (! strstr((string) $macro, ' ')) {
                 $rule = str_replace('%macros.' . $macro, '(' . $value . ')', $rule);
             }
         }

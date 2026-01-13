@@ -1,3 +1,4 @@
+@if($show_totals)
 @if($device_totals)
 <div class="widget-availability-host">
     <span>{{ __('Total hosts') }}</span>
@@ -9,7 +10,7 @@
     <span class="label label-warning label-font-border label-border">{{ __('warn') }}: {{ $device_totals['warn'] }}</span>
     <a href="{{ url('devices/state=down') }}@if($device_group){{ '/group='.$device_group }}@endif"><span class="label label-danger label-font-border label-border">{{ __('down') }}: {{ $device_totals['down'] }}</span></a>
     @if($device_totals['maintenance'])
-    <span class="label label-default label-font-border label-border">{{ __('maintenance') }}: {{ $device_totals['maintenance'] }}</span>
+    <span class="label label-default label-font-border label-border">{{ __('alerting.maintenance.maintenance') }}: {{ $device_totals['maintenance'] }}</span>
     @endif
 </div>
 @endif
@@ -24,39 +25,24 @@
 @endif
 
 <br style="clear:both;">
+@endif
 
 @foreach($devices as $row)
-    <a href="@deviceUrl($row['device'])" title="{{$row['device']->displayName() }}@if($row['stateName'] == 'up' or $row['stateName'] == 'warn')@if($row['device']->formatDownUptime(true)) - @endif{{ $row['device']->formatDownUptime(true) }}@elseif($row['stateName'] == 'down')@if($row['device']->formatDownUptime(true)) - downtime @endif{{$row['device']->formatDownUptime(true)}}@endif">
+    <a href="{{ $row['link'] }}" title="{{$row['tooltip'] }}">
         @if($type == 0)
-            @if($color_only_select == 1)
-                <span class="label {{ $row['labelClass'] }} widget-availability-fixed widget-availability label-font-border"> </span>
-            @else
-            @if($color_only_select == 2)
-                <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ __($row['device']->hostname) }}</span>
-            @else
-            @if($color_only_select == 3)
-                <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ __($row['device']->sysName) }}</span>
-            @else
-                <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ __($row['stateName']) }}</span>
-            @endif
-            @endif
-            @endif
+            <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ $row['label'] }}</span>
         @else
-            <div class="availability-map-oldview-box-{{ $row['stateName'] }}" style="width:{{ $tile_size }}px;height:{{ $tile_size }}px;"></div>
+            <div class="{{ $row['labelClass'] }}" style="width:{{ $tile_size }}px;height:{{ $tile_size }}px;"></div>
         @endif
     </a>
 @endforeach
 
 @foreach($services as $row)
-    <a href="@deviceUrl($row['service']->device, ['tab' => 'services'])" title="{{ $row['service']->device->displayName() }} - {{ $row['service']->service_type }} - {{ $row['service']->service_desc }}">
+    <a href="{{ $row['link'] }}" title="{{$row['tooltip'] }}">
         @if($type == 0)
-            @if($color_only_select)
-                <span class="label {{ $row['labelClass'] }} widget-availability-fixed widget-availability label-font-border"> </span>
-            @else
-                <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ $row['service']->service_type }} - {{ $row['stateName'] }}</span>
-            @endif
+            <span class="label {{ $row['labelClass'] }} widget-availability label-font-border">{{ $row['label'] }}</span>
         @else
-            <div class="availability-map-oldview-box-{{ $row['stateName'] }}" style="width:{{ $tile_size }}px;height:{{ $tile_size }}px;"></div>
+            <div class="{{ $row['labelClass'] }}" style="width:{{ $tile_size }}px;height:{{ $tile_size }}px;"></div>
         @endif
     </a>
 @endforeach

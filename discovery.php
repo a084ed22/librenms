@@ -15,14 +15,15 @@ $init_modules = ['discovery'];
 require __DIR__ . '/includes/init.php';
 
 $start = microtime(true);
-Log::setDefaultDriver('console');
 $sqlparams = [];
 $options = getopt('h:m:i:n:d::v::a::q', ['os:', 'type:']);
 
 if (! isset($options['q'])) {
-    echo \LibreNMS\Config::get('project_name') . " Discovery\n";
+    echo \App\Facades\LibrenmsConfig::get('project_name') . " Discovery\n";
 }
 
+$where = '';
+$doing = '';
 if (isset($options['h'])) {
     if ($options['h'] == 'odd') {
         $options['n'] = '1';
@@ -39,10 +40,12 @@ if (isset($options['h'])) {
         $doing = 'new';
     } elseif ($options['h']) {
         if (is_numeric($options['h'])) {
-            $where = "AND `device_id` = '" . $options['h'] . "'";
+            $where = 'AND `device_id` = ?';
+            $sqlparams[] = $options['h'];
             $doing = $options['h'];
         } else {
-            $where = "AND `hostname` LIKE '" . str_replace('*', '%', $options['h']) . "'";
+            $where = 'AND `hostname` LIKE ?';
+            $sqlparams[] = str_replace('*', '%', $options['h']);
             $doing = $options['h'];
         }
     }//end if
@@ -59,28 +62,18 @@ if (isset($options['type'])) {
 }
 
 if (isset($options['i']) && $options['i'] && isset($options['n'])) {
-    $where .= ' AND MOD(device_id,' . $options['i'] . ") = '" . $options['n'] . "'";
+    $where .= ' AND MOD(device_id,?) = ?';
+    $sqlparams[] = $options['i'];
+    $sqlparams[] = $options['n'];
     $doing = $options['n'] . '/' . $options['i'];
 }
 
-if (Debug::set(isset($options['d']), false) || isset($options['v'])) {
-    $versions = version_info();
-    echo <<<EOH
-===================================
-Version info:
-Commit SHA: {$versions['local_sha']}
-Commit Date: {$versions['local_date']}
-DB Schema: {$versions['db_schema']}
-PHP: {$versions['php_ver']}
-MySQL: {$versions['mysql_ver']}
-RRDTool: {$versions['rrdtool_ver']}
-SNMP: {$versions['netsnmp_ver']}
-==================================
-EOH;
+if (Debug::set(isset($options['d'])) || isset($options['v'])) {
+    echo \LibreNMS\Util\Version::get()->header();
 
     echo "DEBUG!\n";
     Debug::setVerbose(isset($options['v']));
-    \LibreNMS\Util\OS::updateCache(true); // Force update of OS Cache
+    LibrenmsConfig::invalidateAndReload();
 }
 
 if (! $where) {
@@ -108,32 +101,36 @@ $module_override = parse_modules('discovery', $options);
 
 $discovered_devices = 0;
 
-if (! empty(\LibreNMS\Config::get('distributed_poller_group'))) {
-    $where .= ' AND poller_group IN(' . \LibreNMS\Config::get('distributed_poller_group') . ')';
+if (! empty(\App\Facades\LibrenmsConfig::get('distributed_poller_group'))) {
+    $where .= ' AND poller_group IN(' . \App\Facades\LibrenmsConfig::get('distributed_poller_group') . ')';
 }
 
 global $device;
-foreach (dbFetch("SELECT * FROM `devices` WHERE disabled = 0 $where ORDER BY device_id DESC", $sqlparams) as $device) {
-    DeviceCache::setPrimary($device['device_id']);
-    $discovered_devices += (int) discover_device($device, $module_override);
+foreach (dbFetchRows("SELECT * FROM `devices` WHERE disabled = 0 $where ORDER BY device_id DESC", $sqlparams) as $device) {
+    $device_start = microtime(true);
+
+    if (discover_device($device, $module_override)) {
+        $discovered_devices++;
+
+        $device_time = round(microtime(true) - $device_start, 3);
+        DB::table('devices')->where('device_id', $device['device_id'])->update([
+            'last_discovered_timetaken' => $device_time,
+            'last_discovered' => DB::raw('NOW()'),
+        ]);
+
+        echo "Discovered in $device_time seconds\n\n";
+    }
 }
 
 $end = microtime(true);
 $run = ($end - $start);
 $proctime = substr($run, 0, 5);
 
-if ($discovered_devices) {
-    if ($doing === 'new') {
-        // We have added a new device by this point so we might want to do some other work
-        oxidized_reload_nodes();
-    }
-}
-
 if (isset($new_discovery_lock)) {
     $new_discovery_lock->release();
 }
 
-$string = $argv[0] . " $doing " . date(\LibreNMS\Config::get('dateformat.compact')) . " - $discovered_devices devices discovered in $proctime secs";
+$string = $argv[0] . " $doing " . date(\App\Facades\LibrenmsConfig::get('dateformat.compact')) . " - $discovered_devices devices discovered in $proctime secs";
 d_echo("$string\n");
 
 if (! isset($options['q'])) {

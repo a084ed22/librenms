@@ -1,4 +1,5 @@
 <?php
+
 /*
  * TrippliteAlarmAdded.php
  *
@@ -33,6 +34,6 @@ class TrippliteAlarmAdded extends Tripplite implements SnmptrapHandler
 {
     public function handle(Device $device, Trap $trap)
     {
-        \Log::event($this->describe($trap), $device->device_id, 'trap', $this->getSeverity($trap));
+        $trap->log($this->describe($trap), $this->getSeverity($trap));
     }
 }

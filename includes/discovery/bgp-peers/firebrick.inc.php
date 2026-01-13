@@ -1,4 +1,5 @@
 <?php
+
 /**
  * firebrick.inc.php
  *
@@ -23,14 +24,19 @@
  * @author     Chris Malton (@cjsoftuk)
  */
 
-use LibreNMS\Config;
+use App\Facades\LibrenmsConfig;
 use LibreNMS\Util\IP;
 
 $bgpPeersCache = snmpwalk_cache_multi_oid($device, 'fbBgpPeerTable', [], 'FIREBRICK-BGP-MIB', 'firebrick');
 foreach ($bgpPeersCache as $key => $value) {
-    $oid = explode('.', $key);
+    $oid = explode('.', (string) $key);
     $protocol = $oid[0];
-    $address = str_replace($oid[0] . '.', '', $key);
+
+    // We have test-data that looks like 'fbBgpPeerEntry.14.ipv4."90.155.53.63"', filter away when protocol doesn't start with "ipv"
+    if (! str_starts_with($protocol, 'ipv')) {
+        continue;
+    }
+    $address = str_replace($protocol . '.', '', $key);
     if (strlen($address) > 15) {
         $address = IP::fromHexString($address)->compressed();
     }
@@ -42,28 +48,29 @@ foreach ($bgpPeersCache as $key => $value) {
 }
 unset($bgpPeersCache);
 
-foreach ($bgpPeers as $vrfId => $vrf) {
+$bgpLocalAs = null;
+foreach ($bgpPeers ?? [] as $vrfId => $vrf) {
     if (empty($vrfId)) {
         $checkVrf = ' AND `vrf_id` IS NULL ';
         // Force to null to avoid 0s going to the DB instead of Nulls
         $vrfId = null;
     } else {
-        $checkVrf = ' AND vrf_id = ? ';
         $vrfs = [
             'vrf_oid' => 'firebrick.' . $vrfId,
             'vrf_name' => $vrfId,
             'device_id' => $device['device_id'],
         ];
 
-        if (! dbFetchCell('SELECT COUNT(*) FROM vrfs WHERE device_id = ? AND `vrf_oid`=?', [$device['device_id'], $vrfs['vrf_oid']])) {
+        if (! DeviceCache::getPrimary()->vrfs()->where('vrf_oid', $vrfs['vrf_oid'])->exists()) {
+            //Should we insert a VRF here ? We are not in the VRF module !
             dbInsert($vrfs, 'vrfs');
         }
     }
     foreach ($vrf as $address => $value) {
-        $astext = get_astext($value['fbBgpPeerRemoteAS']);
-        if (dbFetchCell('SELECT COUNT(*) from `bgpPeers` WHERE device_id = ? AND bgpPeerIdentifier = ? ' . $checkVrf, [$device['device_id'], $address, $vrfId]) < '1') {
+        $bgpLocalAs = $value['fbBgpPeerLocalAS'] ?? $bgpLocalAs;
+        $astext = \LibreNMS\Util\AutonomousSystem::get($value['fbBgpPeerRemoteAS'])->name();
+        if (! DeviceCache::getPrimary()->bgppeers()->where('bgpPeerIdentifier', $address)->where('vrf_id', $vrfId)->exists()) {
             $peers = [
-                'device_id' => $device['device_id'],
                 'vrf_id' => $vrfId,
                 'bgpPeerIdentifier' => $address,
                 'bgpPeerRemoteAs' => $value['fbBgpPeerRemoteAS'],
@@ -79,20 +86,30 @@ foreach ($bgpPeers as $vrfId => $vrf) {
                 'bgpPeerInUpdateElapsedTime' => 0,
                 'astext' => $astext,
             ];
-            dbInsert($peers, 'bgpPeers');
-            if (Config::get('autodiscovery.bgp')) {
+
+            DeviceCache::getPrimary()->bgppeers()->create($peers);
+
+            if (LibrenmsConfig::get('autodiscovery.bgp')) {
                 $name = gethostbyaddr($address);
                 discover_new_device($name, $device, 'BGP');
             }
             echo '+';
         } else {
-            dbUpdate(['bgpPeerRemoteAs' => $value['fbBgpPeerRemoteAS'], 'astext' => $astext], 'bgpPeers', 'device_id = ? AND bgpPeerIdentifier = ? AND vrf_id = ?', [$device['device_id'], $address, $vrfId]);
+            $peers = [
+                'bgpPeerRemoteAs' => $value['fbBgpPeerRemoteAS'],
+                'astext' => $astext,
+            ];
+            DeviceCache::getPrimary()->bgppeers()->update([
+                'bgpPeerIdentifier' => $address,
+                'vrf_id' => $vrfId,
+            ],
+                $peers);
             echo '.';
         }
     }
 }
 // clean up peers
-$peers = dbFetchRows('SELECT `vrf_id`, `bgpPeerIdentifier` FROM `bgpPeers` WHERE `device_id` = ?', [$device['device_id']]);
+$peers = DeviceCache::getPrimary()->bgppeers()->select('vrf_id', 'bgpPeerIdentifier');
 foreach ($peers as $value) {
     $vrfId = $value['vrf_id'];
     $address = $value['bgpPeerIdentifier'];
@@ -100,7 +117,7 @@ foreach ($peers as $value) {
     // Cleanup code to deal with 0 vs Null in the DB
     if ($vrfId === 0) {
         // Database says it's table 0 - which is wrong.  It should be "null" for global table
-        $deleted = dbDelete('bgpPeers', 'device_id = ? AND bgpPeerIdentifier = ? AND vrf_id = ?', [$device['device_id'], $address, $vrfId]);
+        $deleted = DeviceCache::getPrimary()->bgppeers()->where('bgpPeerIdentifier', $address)->where('vrf_id', $vrfId)->delete();
         echo str_repeat('-', $deleted);
         continue;
     } else {
@@ -108,14 +125,7 @@ foreach ($peers as $value) {
     }
 
     if (empty($bgpPeers[$testVrfId][$address])) {
-        if ($vrfId === null) {
-            $deleted = dbDelete('bgpPeers', 'device_id = ? AND bgpPeerIdentifier = ? AND vrf_id IS NULL', [$device['device_id'], $address]);
-        } else {
-            $deleted = dbDelete('bgpPeers', 'device_id = ? AND bgpPeerIdentifier = ? AND vrf_id = ?', [$device['device_id'], $address, $vrfId]);
-        }
+        $deleted = DeviceCache::getPrimary()->bgppeers()->where('bgpPeerIdentifier', $address)->where('vrf_id', $vrfId)->delete();
         echo str_repeat('-', $deleted);
     }
 }
-
-// TODO: Fix me to use the local AS as published
-$bgpLocalAs = $bgpPeers[0][array_keys($bgpPeers[0])[0]]['fbBgpPeerRemoteAS'];

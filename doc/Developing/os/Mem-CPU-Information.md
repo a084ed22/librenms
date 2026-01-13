@@ -1,6 +1,3 @@
-source: Developing/os/Mem-CPU-Information.md
-path: blob/master/doc/
-
 This document will guide you through adding detection for Memory /
 Processor for your new device.
 
@@ -19,7 +16,7 @@ provide a usage percentage, which will work, but a total RAM amount will not be 
 - free
 - percent_used
 
-`includes/definitions/discovery/mempools/arubaos.yaml`
+`resources/definitions/os_discovery/mempools/arubaos.yaml`
 
 ```yaml
 mempools:
@@ -97,7 +94,7 @@ processing of data is required.
 
 ##### YAML
 
-`includes/definitions/discovery/pulse.yaml`
+`resources/definitions/os_discovery/pulse.yaml`
 
 ```yaml
 mib: PULSESECURE-PSG-MIB

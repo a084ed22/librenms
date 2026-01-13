@@ -1,4 +1,5 @@
 <?php
+
 /**
  * EnvHelper.php
  *
@@ -27,6 +28,7 @@ namespace LibreNMS\Util;
 
 use ErrorException;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Support\Facades\Artisan;
 use LibreNMS\Exceptions\FileWriteFailedException;
 
 class EnvHelper
@@ -40,7 +42,7 @@ class EnvHelper
      * @param  string  $file
      * @return string
      *
-     * @throws \LibreNMS\Exceptions\FileWriteFailedException
+     * @throws FileWriteFailedException
      */
     public static function writeEnv($settings, $unset = [], $file = '.env')
     {
@@ -110,7 +112,7 @@ class EnvHelper
      *
      * @return bool|string
      *
-     * @throws \LibreNMS\Exceptions\FileWriteFailedException
+     * @throws FileWriteFailedException
      */
     public static function init()
     {
@@ -119,7 +121,17 @@ class EnvHelper
             if (! file_exists($env_file)) {
                 copy(base_path('.env.example'), $env_file);
 
-                $key = trim(exec(PHP_BINDIR . '/php ' . base_path('artisan') . ' key:generate --show'));
+                $key = null;
+                if (php_sapi_name() == 'cli') {
+                    $key = trim(exec(PHP_BINARY . ' ' . base_path('artisan') . ' key:generate --show --no-ansi'));
+                } else {
+                    if (Artisan::call('key:generate', [
+                        '--show' => 'true',
+                        '--no-ansi' => 'true',
+                    ]) == 0) {
+                        $key = trim(Artisan::output());
+                    }
+                }
 
                 self::writeEnv([
                     'APP_KEY' => $key,
@@ -128,7 +140,7 @@ class EnvHelper
 
                 try {
                     config(['app.key' => $key]);
-                } catch (BindingResolutionException $e) {
+                } catch (BindingResolutionException) {
                     // called outside of Laravel, ignore config() failure
                 }
 
@@ -153,7 +165,7 @@ class EnvHelper
             $parts = explode('=', $line, 2);
             if (isset($parts[1])
                 && preg_match('/(?<!\s)#/', $parts[1]) // number symbol without a space before it
-                && ! preg_match('/^(".*"|\'.*\')$/', $parts[1]) // not already quoted
+                && ! preg_match('/^(".*"|\'.*\')$/', trim($parts[1])) // not already quoted
             ) {
                 return trim($parts[0]) . '="' . trim($parts[1]) . '"';
             }
@@ -170,7 +182,7 @@ class EnvHelper
      */
     private static function escapeValue($value)
     {
-        if (strpos($value, ' ') !== false) {
+        if (str_contains($value, ' ')) {
             return "\"$value\"";
         }
 

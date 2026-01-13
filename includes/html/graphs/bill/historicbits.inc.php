@@ -2,6 +2,7 @@
 
 use Amenadiel\JpGraph\Graph\Graph;
 use Amenadiel\JpGraph\Plot\LinePlot;
+use LibreNMS\Billing;
 
 $bill_hist_id = $vars['bill_hist_id'];
 $reducefactor = $vars['reducefactor'];
@@ -10,23 +11,23 @@ if (is_numeric($bill_hist_id)) {
     if ($reducefactor < 2) {
         $extents = dbFetchRow('SELECT UNIX_TIMESTAMP(bill_datefrom) as `from`, UNIX_TIMESTAMP(bill_dateto) AS `to`FROM bill_history WHERE bill_id = ? AND bill_hist_id = ?', [$bill_id, $bill_hist_id]);
         $dur = $extents['to'] - $extents['from'];
-        $reducefactor = round(($dur / 300 / (($vars['height'] - 100) * 3)), 0);
+        $reducefactor = round($dur / 300 / (($vars['height'] - 100) * 3), 0);
 
         if ($reducefactor < 2) {
             $reducefactor = 2;
         }
     }
-    $graph_data = getBillingHistoryBitsGraphData($bill_id, $bill_hist_id, $reducefactor);
+    $graph_data = Billing::getHistoryBitsGraphData($bill_id, $bill_hist_id, $reducefactor);
 } else {
     if ($reducefactor < 2) {
         $dur = $vars['to'] - $vars['from'];
-        $reducefactor = round(($dur / 300 / (($vars['height'] - 100) * 3)), 0);
+        $reducefactor = round($dur / 300 / (($vars['height'] - 100) * 3), 0);
 
         if ($reducefactor < 2) {
             $reducefactor = 2;
         }
     }
-    $graph_data = getBillingBitsGraphData($bill_id, $vars['from'], $vars['to'], $reducefactor);
+    $graph_data = Billing::getBitsGraphData($bill_id, $vars['from'], $vars['to'], $reducefactor);
 }
 
 // header('Content-Type: application/json');
@@ -35,7 +36,7 @@ if (is_numeric($bill_hist_id)) {
 
 $n = count($graph_data['ticks']);
 $xmin = $graph_data['ticks'][0];
-$xmax = $graph_data['ticks'][($n - 1)];
+$xmax = $graph_data['ticks'][$n - 1];
 
 function TimeCallback($aVal)
 {
@@ -57,7 +58,7 @@ function InvertCallback($x)
 
 function YCallback($y)
 {
-    return \LibreNMS\Util\Number::formatSi($y, 2, 0, '');
+    return \LibreNMS\Util\Number::formatSi($y, 0, 0, '');
 }
 
 $graph = new Graph($vars['width'], $vars['height'], $graph_data['graph_name']);
@@ -110,16 +111,16 @@ $lineplot_in->SetColor('darkgreen');
 $lineplot_in->SetFillColor('lightgreen@0.4');
 $lineplot_in->SetWeight(1);
 
-$lineplot_out = new LinePlot(array_map('InvertCallback', $graph_data['out_data']), $graph_data['ticks']);
+$lineplot_out = new LinePlot(array_map(InvertCallback(...), $graph_data['out_data']), $graph_data['ticks']);
 $lineplot_out->SetLegend('Traffic Out');
 $lineplot_out->SetColor('darkblue');
 $lineplot_out->SetFillColor('lightblue@0.4');
 $lineplot_out->SetWeight(1);
 
-if (strtolower($graph_data['bill_type']) == 'cdr') {
+if (strtolower((string) $graph_data['bill_type']) == 'cdr') {
     $lineplot_95th = new LinePlot([$graph_data['rate_95th'], $graph_data['rate_95th']], [$xmin, $xmax]);
     $lineplot_95th->SetColor('red');
-} elseif (strtolower($graph_data['bill_type']) == 'quota') {
+} elseif (strtolower((string) $graph_data['bill_type']) == 'quota') {
     $lineplot_ave = new LinePlot([$graph_data['rate_average'], $graph_data['rate_average']], [$xmin, $xmax]);
     $lineplot_ave->SetColor('red');
 }
@@ -131,9 +132,9 @@ $graph->Add($lineplot);
 $graph->Add($lineplot_in);
 $graph->Add($lineplot_out);
 
-if (strtolower($graph_data['bill_type']) == 'cdr') {
+if (strtolower((string) $graph_data['bill_type']) == 'cdr') {
     $graph->Add($lineplot_95th);
-} elseif (strtolower($graph_data['bill_type']) == 'quota') {
+} elseif (strtolower((string) $graph_data['bill_type']) == 'quota') {
     $graph->Add($lineplot_ave);
 }
 

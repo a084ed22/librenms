@@ -1,4 +1,5 @@
 <?php
+
 /**
  * FgTrapIpsAnomaly.php
  *
@@ -28,9 +29,9 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
+use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class FgTrapIpsAnomaly implements SnmptrapHandler
 {
@@ -46,6 +47,6 @@ class FgTrapIpsAnomaly implements SnmptrapHandler
     {
         $srcIp = $trap->getOidData($trap->findOid('FORTINET-FORTIGATE-MIB::fgIpsTrapSrcIp'));
         $proto = $trap->getOidData($trap->findOid('FORTINET-FORTIGATE-MIB::fgIpsTrapSigMsg'));
-        Log::event("DDoS prevention triggered. Source: $srcIp Protocol: $proto", $device->device_id, 'trap', 4);
+        $trap->log("DDoS prevention triggered. Source: $srcIp Protocol: $proto", Severity::Warning);
     }
 }

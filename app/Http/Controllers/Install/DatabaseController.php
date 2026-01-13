@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DatabaseController.php
  *
@@ -98,12 +99,13 @@ class DatabaseController extends InstallationController implements InstallerStep
 
     public function migrate(Request $request)
     {
-        $response = new StreamedResponse(function () {
+        $response = new StreamedResponse(function (): void {
             try {
                 $this->configureDatabase();
                 $output = new StreamedOutput(fopen('php://stdout', 'w'));
                 echo "Starting Update...\n";
-                $ret = \Artisan::call('migrate', ['--seed' => true, '--force' => true], $output);
+                $schema_file = database_path('schema/mysql-schema.sql');
+                $ret = \Artisan::call('migrate', ['--seed' => true, '--force' => true, '--no-ansi' => true, '--no-interaction' => true, '--schema-path' => $schema_file], $output);
                 if ($ret !== 0) {
                     throw new \RuntimeException('Migration failed');
                 }
@@ -143,6 +145,6 @@ class DatabaseController extends InstallationController implements InstallerStep
 
     public function icon(): string
     {
-        return 'fa-database';
+        return 'fa-solid fa-database';
     }
 }

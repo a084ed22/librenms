@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CpUpsBatteryNotPresent.php
  *
@@ -30,7 +31,6 @@ namespace LibreNMS\Snmptrap\Handlers;
 use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class CpUpsBatteryNotPresent implements SnmptrapHandler
 {
@@ -45,6 +45,6 @@ class CpUpsBatteryNotPresent implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $status = CyberPowerUtil::getMessage($trap);
-        Log::event("$status", $device->device_id, 'trap', 2);
+        $trap->log("$status");
     }
 }

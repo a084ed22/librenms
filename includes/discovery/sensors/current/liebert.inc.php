@@ -1,4 +1,5 @@
 <?php
+
 /**
  * liebert.inc.php
  *
@@ -51,7 +52,7 @@ foreach (array_keys($psline_data) as $index) {
     $current = $psline_data[$index]['lgpPduPsLineEntryEcHundredths'];
 
     discover_sensor(
-        $valid['sensor'],
+        null,
         $class,
         $device,
         $oid,
@@ -82,7 +83,7 @@ foreach (array_keys($ps_data) as $index) {
 
     $oid = '.1.3.6.1.4.1.476.1.42.3.8.30.20.1.70.' . $index;
     $type = 'liebert';
-    $descr = 'Neutral ' . $ps_data[$index]['lgpPduPsLineEntryId'];
+    $descr = trim('Neutral ' . $ps_data[$index]['lgpPduPsEntryId']);
     $divisor = 10;
     $multiplier = 1;
 
@@ -94,7 +95,7 @@ foreach (array_keys($ps_data) as $index) {
     $current = $ps_data[$index]['lgpPduPsEntryEcNeutral'];
 
     discover_sensor(
-        $valid['sensor'],
+        null,
         $class,
         $device,
         $oid,
@@ -139,7 +140,7 @@ foreach (array_keys($rb_data) as $index) {
     $group = 'Line to Neutral';
 
     discover_sensor(
-        $valid['sensor'],
+        null,
         $class,
         $device,
         $oid,

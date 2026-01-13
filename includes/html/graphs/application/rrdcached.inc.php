@@ -1,4 +1,5 @@
 <?php
+
 /**
  * rrdcached.inc.php
  *
@@ -22,7 +23,7 @@
  * @copyright  2016 Tony Murray
  * @author     Tony Murray <murraytony@gmail.com>
  */
-$rrd = Rrd::name($device['hostname'], ['app', 'rrdcached', $app['app_id']]);
+$rrd = Rrd::name($device['hostname'], ['app', 'rrdcached', $app->app_id]);
 if (Rrd::checkRrdExists($rrd)) {
     $rrd_filename = $rrd;
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * alert-notes.inc.php
  *
@@ -26,7 +27,7 @@ header('Content-type: application/json');
 
 $alert_id = $vars['alert_id'];
 $sub_type = $vars['sub_type'];
-$note = $vars['note'] ?: '';
+$note = isset($vars['note']) ? strip_tags($vars['note']) : '';
 $status = 'error';
 
 if (is_numeric($alert_id)) {
@@ -46,7 +47,7 @@ if (is_numeric($alert_id)) {
     $message = 'Invalid alert id';
 }
 exit(json_encode([
-    'status'  => $status,
+    'status' => $status,
     'message' => $message,
-    'note'    => $note,
+    'note' => $note,
 ]));

@@ -1,5 +1,4 @@
 </form>
-<h3> Port Settings </h3>
 <span id="message"></span>
 
 <form id='ignoreport' name='ignoreport' method='post' action='' role='form' class='form-inline'>
@@ -82,29 +81,29 @@
             success: function (data) {
                 if (data.status == 'ok') {
                     $this.closest('.form-group').addClass('has-success');
-                    $this.next().addClass('fa-check');
+                    $this.next().children().first().addClass('fa-check');
                     $this.val(speed);
                     setTimeout(function(){
                         $this.closest('.form-group').removeClass('has-success');
-                        $this.next().removeClass('fa-check');
+                        $this.next().children().first().removeClass('fa-check');
                     }, 2000);
                 } else if (data.status == 'na') {
 
                 } else {
                     $(this).closest('.form-group').addClass('has-error');
-                    $this.next().addClass('fa-times');
+                    $this.next().children().first().addClass('fa-times');
                     setTimeout(function(){
                         $this.closest('.form-group').removeClass('has-error');
-                        $this.next().removeClass('fa-times');
+                        $this.next().children().first().removeClass('fa-times');
                     }, 2000);
                 }
             },
             error: function () {
                 $(this).closest('.form-group').addClass('has-error');
-                $this.next().addClass('fa-times');
+                $this.next().children().first().addClass('fa-times');
                 setTimeout(function(){
                    $this.closest('.form-group').removeClass('has-error');
-                   $this.next().removeClass('fa-times');
+                   $this.next().children().first().removeClass('fa-times');
                 }, 2000);
             }
         });
@@ -188,7 +187,10 @@
         });
     });
 
-    var grid = $("#edit-ports").bootgrid({
+
+
+
+var grid = $("#edit-ports").bootgrid({
         ajax: true,
         rowCount: [50, 100, 250, -1],
         templates: {
@@ -207,7 +209,8 @@
                                 </span>\
                                 <span class="action_group">\
                                 <button id="save-form" type="submit" value="Save" class="btn btn-success btn-sm" title="Save current port disable/ignore settings">Save Toggles</button>\
-                                <button type="submit" value="Reset" class="btn btn-danger btn-sm" id="form-reset" title="Reset form to previously-saved settings">Reset</button>\
+                                <button type="submit" value="Reset" class="btn btn-danger btn-sm" id="form-reset" title="Reset form to previously-saved settings">Revert Changes</button>\
+                                <button type="button" id="reset_port_state" data-device_id="<?php echo $device['device_id']; ?>" class="btn btn-info btn-sm" name="reset_ports" title="Reset interface speed, admin up/down, and link up/down history, clearing associated alarms"><i class="fa fa-recycle"></i> Reset Ports State</button>\
                                 </span>\
                             </span>\
                         </div>\
@@ -229,12 +232,24 @@
         });
 
         init_select2('.port_group_select', 'port-group', {}, null, 'No Group');
+        var last_port_group_change;
         $('.port_group_select').on('change', function (e) {
-            var $target = $(e.target)
+            var $target = $(e.target);
+            var port_id = $target.data('port_id');
+            var groups = JSON.stringify({"groups": $target.val()});
+
+            console.log(last_port_group_change, (port_id + groups));
+            // don't send the same update multiple times... silly select2
+            if (last_port_group_change === (port_id + groups)) {
+                return;
+            }
+
+            last_port_group_change = port_id + groups;
+
             $.ajax({
                 type: "PUT",
-                url: "<?php echo url('port'); ?>/" + $target.data('port_id'),
-                data: {"groups": $target.val()},
+                url: "<?php echo url('port'); ?>/" + port_id,
+                data: groups,
                 success: function(data) {
                     toastr.success(data.message)
                 },
@@ -242,6 +257,26 @@
                     toastr.error(data.responseJSON.message)
                 }
             });
+        });
+    });
+    $("#reset_port_state").on("click", function() {
+        var device_id = $(this).data("device_id");
+        $.ajax({
+            type: 'POST',
+            url: 'ajax_form.php',
+            data: { type: "reset-port-state", device_id: device_id },
+            dataType: "json",
+            success: function(data){
+                if(data['status'] === 'ok') {
+                    toastr.success(data['message']);
+                    location.reload();
+                } else {
+                    toastr.error(data['message']);
+                }
+            },
+            error:function(){
+                toastr.error('An error occurred while attempting to reset port state alarms');
+            }
         });
     });
 </script>

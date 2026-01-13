@@ -10,43 +10,43 @@
 <div class="row collapse @if(!$hide_dashboard_editor)in @endif" id="dashboard-editor">
     <div class="col-md-12">
         <div class="btn-group btn-lg">
-            <button class="btn btn-default disabled" style="min-width:160px;"><span class="pull-left">Dashboards</span></button>
+            <button class="btn btn-default disabled" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.title') }}</span></button>
             <div class="btn-group">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="min-width:160px;">
-                    <span class="pull-left">{{ $dashboard->user_id != Auth::id() ? ($dashboard->user->username ?? __('Deleted User')) . ':' : null}} {{ $dashboard->dashboard_name }}</span>
+                    <span class="pull-left">{{ $dashboard->user_id != Auth::id() ? ($dashboard->user->username ?? trans('dashboard.deleted_user')) . ':' : null}} {{ $dashboard->dashboard_name }}</span>
                 <span class="pull-right">
                 <span class="caret"></span>
-                <span class="sr-only">Toggle Dropdown</span>
+                <span class="sr-only">{{ trans('dashboard.toggle_dropdown') }}</span>
                 </span>
                 </button>
                 <ul class="dropdown-menu">
                     @forelse ($user_dashboards as $dash)
                         @if($dash->dashboard_id != $dashboard->dashboard_id)
                         <li>
-                            <a href="{{ url("?dashboard=$dash->dashboard_id") }}">{{ $dash->dashboard_name }}</a>
+                            <a href="{{ route('dashboard.show', $dash->dashboard_id) }}">{{ $dash->dashboard_name }}</a>
                         </li>
                         @endif
                     @empty
-                        <li><a>No other Dashboards</a></li>
+                        <li><a>{{ trans('dashboard.no_other') }}</a></li>
                     @endforelse
 
                     @isset($shared_dashboards)
                         <li role="separator" class="divider"></li>
-                        <li class="dropdown-header">Shared Dashboards</li>
+                        <li class="dropdown-header">{{ trans('dashboard.shared_title') }}</li>
                         @foreach ($shared_dashboards as $dash)
                             @if($dash->dashboard_id != $dashboard->dashboard_id)
                             <li>
-                                <a href="{{ url("?dashboard=$dash->dashboard_id") }}">
-                                {{ ($dash->user->username ?? __('Deleted User')) . ':' . $dash->dashboard_name . ($dash->access == 1 ? ' (Read)' : '') }}</a>
+                                <a href="{{ route('dashboard.show', $dash->dashboard_id) }}">
+                                {{ ($dash->user->username ?? trans('dashboard.deleted_user')) . ':' . $dash->dashboard_name . ($dash->access == 1 ? ' (' . trans('dashboard.read_only') . ')' : '') }}</a>
                             </li>
                             @endif
                         @endforeach
                     @endisset
                 </ul>
             </div>
-            <button class="btn btn-default edit-dash-btn" href="#edit_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="Edit Dashboard"><i class="fa fa-pencil-square-o fa-fw"></i></button>
-            <button class="btn btn-danger" href="#del_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="Remove Dashboard"><i class="fa fa-trash fa-fw"></i></button>
-            <button class="btn btn-success" href="#add_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="New Dashboard"><i class="fa fa-plus fa-fw"></i></button>
+                        <button class="btn btn-default edit-dash-btn" href="#edit_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="{{ trans('dashboard.buttons.edit') }}"><i class="fa fa-pencil-square-o fa-fw"></i></button>
+            <button class="btn btn-danger" href="#del_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="{{ trans('dashboard.buttons.remove') }}"><i class="fa fa-trash fa-fw"></i></button>
+            <button class="btn btn-success" href="#add_dash" onclick="dashboard_collapse($(this).attr('href'))" data-toggle="tooltip" data-container="body" data-placement="top" title="{{ trans('dashboard.buttons.new') }}"><i class="fa fa-plus fa-fw"></i></button>
         </div>
         <div class="dash-collapse" id="add_dash" style="display: none;" >
             <div class="row" style="margin-top:5px;">
@@ -56,11 +56,11 @@
                         <div class="col-sm-3 col-sx-6">
                             <div class="input-group">
                                 <span class="input-group-btn">
-                                    <a class="btn btn-default disabled" type="button" style="min-width:160px;"><span class="pull-left">New Dashboard</span></a>
+                                    <a class="btn btn-default disabled" type="button" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.fields.new_dashboard') }}</span></a>
                                 </span>
-                                <input class="form-control" type="text" placeholder="Name" name="dashboard_name" id="dashboard_name" style="min-width:160px;">
+                                <input class="form-control" type="text" placeholder="{{ trans('dashboard.fields.name') }}" name="dashboard_name" id="dashboard_name" style="min-width:160px;">
                                 <span class="input-group-btn">
-                                    <button class="btn btn-primary" type="submit">Add</button>
+                                    <button class="btn btn-primary" type="submit">{{ trans('dashboard.buttons.add') }}</button>
                                 </span>
                             </div>
                         </div>
@@ -79,16 +79,17 @@
                             <div class="form-group">
                                 <div class="input-group">
                                     <span class="input-group-btn">
-                                        <a class="btn btn-default disabled" type="button" style="min-width:160px;"><span class="pull-left">Dashboard Name</span></a>
+                                        <a class="btn btn-default disabled" type="button" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.fields.dashboard_name') }}</span></a>
                                     </span>
-                                    <input class="form-control" type="text" placeholder="Dashbord Name" name="dashboard_name" value="{{ $dashboard->dashboard_name }}" style="width:160px;">
+                                    <input class="form-control" type="text" placeholder="{{ trans('dashboard.fields.dashboard_name') }}" name="dashboard_name" value="{{ $dashboard->dashboard_name }}" style="width:160px;">
                                     <select class="form-control" name="access" style="width:160px;">
-                                    @foreach (array('Private','Shared (Read)','Shared') as $k => $v)
+                                    @php($accessLabels = [0 => trans('dashboard.access.private'), 1 => trans('dashboard.access.shared_read'), 2 => trans('dashboard.access.shared_admin'), 3 => trans('dashboard.access.shared')])
+                                    @foreach ($accessLabels as $k => $v)
                                         <option value="{{ $k }}" {{ $dashboard->access == $k ? 'selected' : null }}>{{ $v }}</option>
                                     @endforeach
                                     </select>
                                     <span class="input-group-btn pull-left">
-                                        <button class="btn btn-primary" type="submit">Update</button>
+                                        <button class="btn btn-primary" type="submit">{{ trans('dashboard.buttons.update') }}</button>
                                     </span>
                                 </div>
                             </div>
@@ -98,13 +99,13 @@
                     <div class="btn-group btn-lg" style="margin-top:5px;position:absolute;right:0px;">
                         <div class="btn-group">
                         <select class="form-control" id="dashboard_copy_target" name="dashboard_copy_target" onchange="dashboard_copy_user_select()">
-                            <option value="-1" selected> Copy Dashboard to </option>
-                        @foreach ($user_list as $user)
-                            <option value="{{ $user->user_id }}">{{ $user->username }}</option>
+                            <option value="-1" selected> {{ trans('dashboard.buttons.copy_to') }} </option>
+                        @foreach ($user_list as $user_id => $username)
+                            <option value="{{ $user_id }}">{{ $username }}</option>
                         @endforeach
                         </select>
                         </div>
-                        <button disabled id="do_copy_dashboard" class="btn btn-primary" onclick="dashboard_copy(this)" data-toggle="tooltip" data-container="body" data-placement="top" title="Copy Dashboard"><i class="fa fa-copy fa-fw"></i></button>
+                        <button disabled id="do_copy_dashboard" class="btn btn-primary" onclick="dashboard_copy(this)" data-toggle="tooltip" data-container="body" data-placement="top" title="{{ trans('dashboard.buttons.copy') }}"><i class="fa fa-copy fa-fw"></i></button>
                     </div>
                     @endif
                 </div>
@@ -115,18 +116,18 @@
                 <div class="col-md-12">
                     <div class="col-md-12">
                         <div class="btn-group" role="group">
-                            <a class="btn btn-default disabled" role="button" style="min-width:160px;"><span class="pull-left">Add Widgets</span></a>
+                            <a class="btn btn-default disabled" role="button" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.widgets.add') }}</span></a>
                             <div class="btn-group">
-                                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="min-width:160px;"><span class="pull-left">Select Widget</span>
+                                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.widgets.select') }}</span>
                                 <span class="pull-right">
                                     <span class="caret"></span>
-                                    <span class="sr-only">Toggle Dropdown</span>
+                                    <span class="sr-only">{{ trans('dashboard.toggle_dropdown') }}</span>
                                 </span>
                                 </button>
                                 <ul class="dropdown-menu">
-                                    @foreach ($widgets as $widget)
+                                    @foreach ($widgets as $type => $title)
                                     <li>
-                                        <a href="#" onsubmit="return false;" class="place_widget" data-widget_id="{{ $widget->widget_id }}">{{ $widget->widget_title }}</a>
+                                        <a href="#" onsubmit="return false;" class="place_widget" data-widget_type="{{ $type }}">{{ $title }}</a>
                                     </li>
                                     @endforeach
                                 </ul>
@@ -142,14 +143,14 @@
             <div class="row" style="margin-top:5px;">
                 <div class="col-md-6">
                     <div class="col-md-6">
-                        <button class="btn btn-danger" type="button" id="clear_widgets" name="clear_widgets" style="min-width:160px;"><span class="pull-left">Remove</span><strong class="pull-right">Widgets</strong></button>
+                        <button class="btn btn-danger" type="button" id="clear_widgets" name="clear_widgets" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.widgets.remove') }}</span><strong class="pull-right">{{ trans('dashboard.widgets.label') }}</strong></button>
                     </div>
                 </div>
             </div>
             <div class="row" style="margin-top:5px;">
                 <div class="col-md-6">
                     <div class="col-md-6">
-                        <button class="btn btn-danger" type="button" onclick="dashboard_delete(this); return false;" data-dashboard="{{ $dashboard->dashboard_id }}" style="min-width:160px;"><span class="pull-left">Delete</span><strong class="pull-right">Dashboard</strong></button>
+                        <button class="btn btn-danger" type="button" onclick="dashboard_delete(this); return false;" data-dashboard="{{ $dashboard->dashboard_id }}" style="min-width:160px;"><span class="pull-left">{{ trans('dashboard.labels.delete') }}</span><strong class="pull-right">{{ trans('dashboard.labels.dashboard') }}</strong></button>
                     </div>
                 </div>
             </div>
@@ -172,10 +173,11 @@
 @endsection
 
 @push('scripts')
+@include('map.custom-js')
 <script type="text/javascript">
     var gridster;
 
-    var serialization = {!! $dash_config !!};
+    var serialization = @json($dash_config);
 
     serialization = Gridster.sort_by_row_and_col_asc(serialization);
     var gridster_state = 0;
@@ -244,16 +246,10 @@
     });
 
     $(document).on('click','#clear_widgets', function() {
-        var widget_id = $(this).data('widget-id');
         if (dashboard_id > 0) {
             $.ajax({
-                type: 'POST',
-                url: 'ajax_form.php',
-                data: {
-                    type: "update-dashboard-config",
-                    sub_type: 'remove-all',
-                    dashboard_id: dashboard_id
-                },
+                type: 'DELETE',
+                url: '{{ route('dashboard.widget.clear', '?') }}'.replace('?', dashboard_id),
                 dataType: "json",
                 success: function (data) {
                     if (data.status == 'ok') {
@@ -272,21 +268,18 @@
     });
 
     $('.place_widget').on('click',  function(event, state) {
-        var widget_id = $(this).data('widget_id');
+        var widget_type = $(this).data('widget_type');
         event.preventDefault();
         if (dashboard_id > 0) {
             $.ajax({
                 type: 'POST',
-                url: 'ajax_form.php',
+                url: '{{ route('dashboard.widget.add', '?') }}'.replace('?', dashboard_id),
                 data: {
-                    type: "update-dashboard-config",
-                    sub_type: 'add',
-                    widget_id: widget_id,
-                    dashboard_id: dashboard_id
+                    widget_type: widget_type
                 },
                 dataType: "json",
                 success: function (data) {
-                    if (data.status == 'ok') {
+                    if (data.status === 'ok') {
                         widget_dom(data.extra);
                         updatePos(gridster);
                         toastr.success(data.message);
@@ -305,14 +298,8 @@
     $(document).on( "click", ".close-widget", function() {
         var widget_id = $(this).data('widget-id');
         $.ajax({
-            type: 'POST',
-            url: 'ajax_form.php',
-            data: {
-                type: "update-dashboard-config",
-                sub_type: 'remove',
-                widget_id: widget_id,
-                dashboard_id: dashboard_id
-            },
+            type: 'DELETE',
+            url: '{{ route('dashboard.widget.remove', '?') }}'.replace('?', widget_id),
             dataType: "json",
             success: function (data) {
                 if (data.status == 'ok') {
@@ -337,15 +324,13 @@
         } else {
             obj.data('settings','1');
         }
-        widget_reload(obj.attr('id'),obj.data('type'));
+        widget_reload(obj.attr('id'), obj.data('type'), true);
     });
 
 
 
 
     function updatePos(gridster) {
-        var s = JSON.stringify(gridster.serialize());
-
         @if ($dashboard->dashboard_id > 0)
             var dashboard_id = {{ $dashboard->dashboard_id }};
         @else
@@ -354,13 +339,9 @@
 
         if (dashboard_id > 0) {
             $.ajax({
-                type: 'POST',
-                url: 'ajax_form.php',
-                data: {
-                    type: "update-dashboard-config",
-                    data: s,
-                    dashboard_id: dashboard_id
-                },
+                type: 'PUT',
+                url: '{{ route('dashboard.widget.update', '?') }}'.replace('?', dashboard_id),
+                data: {data: JSON.stringify(gridster.serialize())},
                 dataType: "json",
                 success: function (data) {
                     if (data.status == 'ok') {
@@ -396,18 +377,14 @@
 
     function dashboard_delete(data) {
         $.ajax({
-            type: 'POST',
-            url: 'ajax_form.php',
-            data: {
-                type: 'delete-dashboard',
-                dashboard_id: $(data).data('dashboard')
-            },
+            type: 'DELETE',
+            url: '{{ route('dashboard.destroy', '?') }}'.replace('?', $(data).data('dashboard')),
             dataType: "json",
             success: function (data) {
                 if( data.status == "ok" ) {
                     toastr.success(data.message);
                     setTimeout(function (){
-                        window.location.href = "{{ url('/') }}";
+                        window.location.href = "{{ route('home') }}";
                     }, 500);
 
                 } else {
@@ -433,12 +410,10 @@
         }
         if (dashboard_id > 0) {
             $.ajax({
-                type: 'POST',
-                url: 'ajax_form.php',
+                type: 'PUT',
+                url: '{{ route('dashboard.update', '?') }}'.replace('?', dashboard_id),
                 data: {
-                    type: 'edit-dashboard',
                     dashboard_name: data['dashboard_name'],
-                    dashboard_id: dashboard_id,
                     access: data['access']
                 },
                 dataType: "json",
@@ -446,7 +421,7 @@
                     if (data.status == "ok") {
                         toastr.success(data.message);
                         setTimeout(function (){
-                            window.location.href = "{{ url('/?dashboard=') }}" + dashboard_id;
+                            window.location.href = '{{ route('dashboard.show', '?') }}'.replace('?', dashboard_id);
                         }, 500);
                     }
                     else {
@@ -468,14 +443,14 @@
         }
         $.ajax({
             type: 'POST',
-            url: 'ajax_form.php',
-            data: {type: 'add-dashboard', dashboard_name: data['dashboard_name']},
+            url: '{{ route('dashboard.store') }}',
+            data: {dashboard_name: data['dashboard_name']},
             dataType: "json",
             success: function (data) {
                 if( data.status == "ok" ) {
                     toastr.success(data.message);
                     setTimeout(function (){
-                        window.location.href = "{{ url('/?dashboard=') }}" + data.dashboard_id;
+                        window.location.href = '{{ route('dashboard.show', '?') }}'.replace('?', data.dashboard_id);
                     }, 500);
                 }
                 else {
@@ -511,8 +486,8 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url('/ajax/form/copy-dashboard') }}',
-                data: {target_user_id: target_user_id, dashboard_id: dashboard_id},
+                url: '{{ route('dashboard.copy', '?') }}'.replace('?', dashboard_id),
+                data: {target_user_id: target_user_id},
                 dataType: "json",
                 success: function (data) {
                     if( data.status == "ok" ) {
@@ -539,7 +514,7 @@
 
                 @if (
                         ($dashboard->access == 1 && Auth::id() === $dashboard->user_id) ||
-                        ($dashboard->access == 0 || $dashboard->access == 2)
+                        ($dashboard->access == 0 || $dashboard->access >= 2)
                     )
                         '<i class="fa fa-pencil-square-o edit-widget" data-widget-id="'+data.user_widget_id+'" aria-label="Settings" data-toggle="tooltip" data-placement="top" title="Settings">&nbsp;</i>&nbsp;'+
                 @endif
@@ -589,7 +564,7 @@
         if(widget_id > 0 && widget_settings != {}) {
             $.ajax({
                 type: 'PUT',
-                url: '{{ url('/ajax/form/widget-settings/') }}/' + widget_id,
+                url: '{{ route('dashboard.widget.settings', '?') }}/'.replace('?', widget_id),
                 data: { settings: widget_settings },
                 dataType: "json",
                 success: function (data) {
@@ -609,18 +584,14 @@
     return false;
     }
 
-    function widget_reload(id, data_type, forceDomInject) {
+    function widget_reload(id, data_type, forceDomInject = false) {
         const $widget_body = $('#widget_body_' + id);
-        const $widget_bootgrid = $('#widget_body_' + id + ' .bootgrid-table');
-        const settings = $widget_body.parent().data('settings') == 1 ? 1 : 0;
+        const $widget = $widget_body.children().first();
 
-        if (settings === 1 || forceDomInject) {
-            $widget_bootgrid.bootgrid('destroy');
-            $('#widget_body_' + id + ' *').off();
-        } else if ($widget_bootgrid[0] && $widget_bootgrid.data('ajax') === true) {
-            // Check to see if a bootgrid already exists and has ajax reloading enabled.
-            // If so, use bootgrid to refresh the data instead of injecting the DOM in request.
-            return $widget_bootgrid.bootgrid('reload');
+        // skip html reload and sned refresh event instead
+        if (!forceDomInject && $widget.data('reload') === false) {
+            $widget.trigger('refresh', $widget); // send refresh event
+            return; // skip html reload
         }
 
         $.ajax({
@@ -629,11 +600,14 @@
             data: {
                 id: id,
                 dimensions: {x: $widget_body.width(), y: $widget_body.height()},
-                settings: settings
+                settings: $widget_body.parent().data('settings') == 1 ? 1 : 0
             },
             dataType: 'json',
             success: function (data) {
                 if (data.status === 'ok') {
+                    $widget.trigger('destroy', $widget); // send destroy event
+                    $widget_body.children().unbind().html("").remove(); // clear old contents and unbind events
+
                     $('#widget_title_' + id).html(data.title);
                     $widget_body.html(data.html);
                     $widget_body.parent().data('settings', data.show_settings).data('refresh', data.settings.refresh);
@@ -648,16 +622,32 @@
     }
 
     function grab_data(id, data_type) {
-        const $parent = $('#widget_body_' + id).parent();
-
-        if($parent.data('settings') == 0) {
-            widget_reload(id, data_type);
-        }
+        const refresh = $('#widget_body_' + id).parent().data('refresh');
+        widget_reload(id, data_type);
 
         setTimeout(function () {
             grab_data(id, data_type);
-        }, ($parent.data('refresh') > 0 ? $parent.data('refresh') : 60) * 1000);
+        }, (refresh > 0 ? refresh : 60) * 1000);
     }
+
+    // make sure gridster stays disabled when the window is resized
+    var resizeTrigger = null;
+    addEvent(window, "resize", function(event) {
+        // emit resize event, but only once every 100ms
+        if (resizeTrigger === null) {
+            resizeTrigger = setTimeout(() => {
+                resizeTrigger = null;
+                $('.widget_body').children().first().trigger('resize');
+            }, 100);
+        }
+
+        setTimeout(function(){
+            if(!gridster_state) {
+                gridster.disable();
+                gridster.disable_resize();
+            }
+        }, 100);
+    });
 
     $('#new-widget').popover();
 

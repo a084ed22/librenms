@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Facades\LibrenmsConfig;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
-use App\Providers\RouteServiceProvider;
+use App\Providers\AppServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
-use LibreNMS\Config;
 
 class LoginController extends Controller
 {
@@ -29,7 +29,7 @@ class LoginController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = RouteServiceProvider::HOME;
+    protected $redirectTo = AppServiceProvider::HOME;
 
     /**
      * Create a new controller instance.
@@ -41,14 +41,22 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
-    public function username()
+    public function username(): string
     {
         return 'username';
     }
 
-    public function showLoginForm()
+    /**
+     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse|\Symfony\Component\HttpFoundation\Response
+     */
+    public function showLoginForm(Request $request)
     {
-        if (Config::get('public_status')) {
+        // Check if we want to redirect users to the socialite provider directly
+        if (! $request->has('redirect') && ! $request->session()->has('block_auto_redirect') && LibrenmsConfig::get('auth.socialite.redirect') && array_key_first(LibrenmsConfig::get('auth.socialite.configs', []))) {
+            return (new SocialiteController)->redirect($request, array_key_first(LibrenmsConfig::get('auth.socialite.configs', [])));
+        }
+
+        if (LibrenmsConfig::get('public_status')) {
             $devices = Device::isActive()->with('location')->get();
 
             return view('auth.public-status')->with('devices', $devices);
@@ -57,8 +65,8 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-    protected function loggedOut(Request $request)
+    protected function loggedOut(Request $request): \Illuminate\Http\RedirectResponse
     {
-        return redirect(Config::get('auth_logout_handler', $this->redirectTo));
+        return redirect(LibrenmsConfig::get('auth_logout_handler', $this->redirectTo));
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CpUpsStartBatteryTest.php
  *
@@ -30,7 +31,6 @@ namespace LibreNMS\Snmptrap\Handlers;
 use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
-use Log;
 
 class CpUpsStartBatteryTest implements SnmptrapHandler
 {
@@ -45,6 +45,6 @@ class CpUpsStartBatteryTest implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $battTestInfo = CyberPowerUtil::getMessage($trap);
-        Log::event("$battTestInfo", $device->device_id, 'trap', 2);
+        $trap->log("$battTestInfo");
     }
 }

@@ -1,6 +1,3 @@
-source: Carel-pCOweb-Devices.md
-path: blob/master/doc/
-
 # Carel pCOweb Devices
 
 The pCOWeb card is used to interface the pCO system to networks that
@@ -28,7 +25,7 @@ to choose a System OID and a Enterprise OID. This is a little tricky but based o
 information we defined a "standard" for all implementation of Carel
 products with LibreNMS.
 
-![pCOweb](/img/carelpcowebsystemoid.png)
+![pCOweb](../../img/carelpcowebsystemoid.png)
 
 The base Carel OID is 1.3.6.1.4.1.9839. To this OID we will add the
 final manufacturer Enterprise OID. You can find all enterprise OID
@@ -53,12 +50,12 @@ In the table below you can find the values needed for devices which are already 
 LibreNMS is ready for the devices listed in this table. You only need
 to configure your pCOweb card with the accorded System OID and Enterprise OID:
 
-| Manufacturer 	| Description 	| System OID                 	| Enterprise OID 	|
-|--------------	|-------------	|----------------------------	|----------------	|
-| Rittal       	| IT Chiller  	| 1.3.6.1.4.1.9839.2606.1    	| 9839           	|
-| Rittal       	| LCP DX 3311 	| 1.3.6.1.4.1.9839.2606.3311 	| 9839.2606      	|
+| Manufacturer  | Description   | System OID                    | Enterprise OID    |
+|-------------- |-------------  |----------------------------   |----------------   |
+| Rittal        | IT Chiller    | 1.3.6.1.4.1.9839.2606.1       | 9839              |
+| Rittal        | LCP DX 3311   | 1.3.6.1.4.1.9839.2606.3311    | 9839.2606         |
 
 ## Unsupported devices
 After constructing the correct System OID for your SNMP card, you can
-start the LibreNMS [new OS implementation](Developing/Support-New-OS/)
+start the LibreNMS [new OS implementation](../../Developing/Support-New-OS.md)
 and use this new OID as sysObjectID for the YAML definition file.

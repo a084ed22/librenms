@@ -3,7 +3,7 @@
 $main_oid = '.1.3.6.1.4.1.789.1.21.1.2.1';
 $oids = snmp_walk($device, $main_oid . '.25', '-Osqn');
 d_echo($oids . "\n");
-$oids = trim($oids);
+$oids = trim((string) $oids);
 if ($oids) {
     echo 'NetApp ';
     foreach (explode("\n", $oids) as $data) {
@@ -26,7 +26,7 @@ if ($oids) {
             $temp_id = $temperature_id . '.' . $x;
             $descr = 'Temp Sensor';
             $x++;
-            discover_sensor($valid['sensor'], 'temperature', $device, $temperature_oid, $temp_id, 'netapp', $descr, '1', '1', $low_limit, $low_warn_limit, $warn_limit, $high_limit, $temperature);
+            discover_sensor(null, 'temperature', $device, $temperature_oid, $temp_id, 'netapp', $descr, '1', '1', $low_limit, $low_warn_limit, $warn_limit, $high_limit, $temperature);
         }
     }
 }

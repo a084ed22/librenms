@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Eloquent\Builder;
+use LibreNMS\Util\Html;
 
 function printEntPhysical($device, $ent, $level, $class)
 {
@@ -9,10 +10,8 @@ function printEntPhysical($device, $ent, $level, $class)
     foreach ($ents as $ent) {
         //Let's find if we have any sensors attached to the current entity;
         //We hit this code for every type of entity because not all vendors have 1 'sensor' entity per sensor
-        $sensors = DeviceCache::getPrimary()->sensors()->where(function (Builder $query) use ($ent) {
-            return $query->where('entPhysicalIndex', $ent['entPhysicalIndex'])
-                ->orWhere('sensor_index', $ent['entPhysicalIndex']);
-        })->get();
+        $sensors = DeviceCache::getPrimary()->sensors()->where(fn (Builder $query) => $query->where('entPhysicalIndex', $ent['entPhysicalIndex'])
+            ->orWhere('sensor_index', $ent['entPhysicalIndex']))->get();
         echo "
  <li class='$class'>";
 
@@ -40,9 +39,8 @@ function printEntPhysical($device, $ent, $level, $class)
 
         $display_entPhysicalName = $ent['entPhysicalName'];
         if ($ent['ifIndex']) {
-            $interface = get_port_by_ifIndex($device['device_id'], $ent['ifIndex']);
-            $interface = cleanPort($interface);
-            $display_entPhysicalName = generate_port_link($interface);
+            $port = PortCache::getByIfIndex($ent['ifIndex'], $device['device_id']);
+            $display_entPhysicalName = \LibreNMS\Util\Url::portLink($port);
         }
 
         if ($ent['entPhysicalModelName'] && $display_entPhysicalName) {
@@ -55,6 +53,8 @@ function printEntPhysical($device, $ent, $level, $class)
             echo '<strong>' . $display_entPhysicalName . '</strong>';
         } elseif ($ent['entPhysicalDescr']) {
             echo '<strong>' . $ent['entPhysicalDescr'] . '</strong>';
+        } elseif ($ent['entPhysicalClass']) {
+            echo '<strong>' . $ent['entPhysicalClass'] . '</strong>';
         }
 
         // Display matching sensor value (without descr, as we have only one)
@@ -63,7 +63,7 @@ function printEntPhysical($device, $ent, $level, $class)
                 echo "<a href='graphs/id=" . $sensor->sensor_id . '/type=sensor_' . $sensor->sensor_class . "/' onmouseover=\"return overlib('<img src=\'graph.php?id=" . $sensor->sensor_id . '&amp;type=sensor_' . $sensor->sensor_class . '&amp;from=-2d&amp;to=now&amp;width=400&amp;height=150&amp;a=' . $ent['entPhysical_id'] . "\'><img src=\'graph.php?id=" . $sensor->sensor_id . '&amp;type=sensor_' . $sensor->sensor_class . '&amp;from=-2w&amp;to=now&amp;width=400&amp;height=150&amp;a=' . $ent['entPhysical_id'] . "\'>', LEFT,FGCOLOR,'#e5e5e5', BGCOLOR, '#c0c0c0', BORDER, 5, CELLPAD, 4, CAPCOLOR, '#050505');\" onmouseout=\"return nd();\">";
                 //echo "<span style='color: #000099;'>" . $sensor->sensor_class . ': ' . $sensor->sensor_descr . '</span>';
                 echo ' ';
-                echo $sensor->sensor_class == 'state' ? get_state_label($sensor->toArray()) : get_sensor_label_color($sensor->toArray());
+                echo Html::severityToLabel($sensor->currentStatus(), $sensor->formatValue());
                 echo '</a>';
             }
         }
@@ -123,7 +123,7 @@ function printEntPhysical($device, $ent, $level, $class)
                 echo "<a href='graphs/id=" . $sensor->sensor_id . '/type=sensor_' . $sensor->sensor_class . "/' onmouseover=\"return overlib('<img src=\'graph.php?id=" . $sensor->sensor_id . '&amp;type=sensor_' . $sensor->sensor_class . '&amp;from=-2d&amp;to=now&amp;width=400&amp;height=150&amp;a=' . $ent['entPhysical_id'] . "\'><img src=\'graph.php?id=" . $sensor->sensor_id . '&amp;type=sensor_' . $sensor->sensor_class . '&amp;from=-2w&amp;to=now&amp;width=400&amp;height=150&amp;a=' . $ent['entPhysical_id'] . "\'>', LEFT,FGCOLOR,'#e5e5e5', BGCOLOR, '#c0c0c0', BORDER, 5, CELLPAD, 4, CAPCOLOR, '#050505');\" onmouseout=\"return nd();\">";
                 echo "<span style='color: #000099;'>" . $disp_name . ' ' . $sensor->sensor_class . '</span>';
                 echo ' ';
-                echo $sensor->sensor_class == 'state' ? get_state_label($sensor->toArray()) : get_sensor_label_color($sensor->toArray());
+                echo Html::severityToLabel($sensor->currentStatus(), $sensor->formatValue());
                 echo '</a><br>';
             }
             echo '</div>';
@@ -133,7 +133,7 @@ function printEntPhysical($device, $ent, $level, $class)
         $count = dbFetchCell("SELECT COUNT(*) FROM `entPhysical` WHERE device_id = '" . $device['device_id'] . "' AND entPhysicalContainedIn = '" . $ent['entPhysicalIndex'] . "'");
         if ($count) {
             echo '<ul>';
-            printEntPhysical($device, $ent['entPhysicalIndex'], ($level + 1), 'liClosed');
+            printEntPhysical($device, $ent['entPhysicalIndex'], $level + 1, 'liClosed');
             echo '</ul>';
         }
 

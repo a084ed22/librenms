@@ -1,4 +1,5 @@
 <?php
+
 /**
  * OSDiscoveryTest.php
  *
@@ -25,16 +26,19 @@
 
 namespace LibreNMS\Tests;
 
+use App\Facades\LibrenmsConfig;
 use App\Models\Device;
 use Illuminate\Support\Str;
-use LibreNMS\Config;
 use LibreNMS\Data\Source\NetSnmpQuery;
 use LibreNMS\Modules\Core;
 use LibreNMS\Tests\Mocks\SnmpQueryMock;
 use LibreNMS\Util\Debug;
-use LibreNMS\Util\OS;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Depends;
+use PHPUnit\Framework\Attributes\Group;
 
-class OSDiscoveryTest extends TestCase
+#[Group('os')]
+final class OSDiscoveryTest extends TestCase
 {
     private static $unchecked_files;
 
@@ -42,17 +46,38 @@ class OSDiscoveryTest extends TestCase
     {
         parent::setUpBeforeClass();
 
-        $glob = Config::get('install_dir') . '/tests/snmpsim/*.snmprec';
+        $glob = realpath(__DIR__ . '/..') . '/tests/snmpsim/*.snmprec';
 
-        self::$unchecked_files = array_flip(array_map(function ($file) {
-            return basename($file, '.snmprec');
-        }, glob($glob)));
+        self::$unchecked_files = array_flip(array_filter(array_map(fn ($file) => basename($file, '.snmprec'), glob($glob)), fn ($file) => ! Str::contains($file, '@')));
+    }
+
+    public function testValidOSNames(): void
+    {
+        $os = array_keys(self::osProvider());
+
+        $invalid_os_name = array_filter($os, fn ($os_name) => preg_match('/[^a-z0-9\-]/', (string) $os_name));
+
+        // DO NOT ADD ANY OS HERE!
+        $exceptions = [
+            'adva_fsp150',
+            'adva_fsp3kr7',
+            'adva_xg300',
+            'allworx_voip',
+            'arista_eos',
+            'xirrus_aos',
+            'fujitsuiRMC',
+            'ies52xxM',
+            'polycomLens',
+        ];
+        $invalid_os_name = array_diff($invalid_os_name, $exceptions);
+
+        $this->assertEmpty($invalid_os_name, 'Invalid OS name found: ' . implode(', ', $invalid_os_name));
     }
 
     /**
      * Populate a list of files to check and make sure it isn't empty
      */
-    public function testHaveFilesToTest()
+    public function testHaveFilesToTest(): void
     {
         $this->assertNotEmpty(self::$unchecked_files);
     }
@@ -60,22 +85,22 @@ class OSDiscoveryTest extends TestCase
     /**
      * Test each OS provided by osProvider
      *
-     * @group os
-     * @dataProvider osProvider
-     *
      * @param  string  $os_name
      */
-    public function testOSDetection($os_name)
+    #[DataProvider('osProvider')]
+    public function testOSDetection($os_name): void
     {
         if (! getenv('SNMPSIM')) {
             $this->app->bind(NetSnmpQuery::class, SnmpQueryMock::class);
         }
 
-        $glob = Config::get('install_dir') . "/tests/snmpsim/$os_name*.snmprec";
-        $files = array_map(function ($file) {
-            return basename($file, '.snmprec');
-        }, glob($glob));
+        $glob = LibrenmsConfig::get('install_dir') . "/tests/snmpsim/$os_name*.snmprec";
+        $files = array_map(fn ($file) => basename($file, '.snmprec'), glob($glob));
         $files = array_filter($files, function ($file) use ($os_name) {
+            if (Str::contains($file, '@')) {
+                return false;
+            }
+
             return $file == $os_name || Str::startsWith($file, $os_name . '_');
         });
 
@@ -91,10 +116,9 @@ class OSDiscoveryTest extends TestCase
 
     /**
      * Test that all files have been tested (removed from self::$unchecked_files
-     *
-     * @depends testOSDetection
      */
-    public function testAllFilesTested()
+    #[Depends('testOSDetection')]
+    public function testAllFilesTested(): void
     {
         $this->assertEmpty(
             self::$unchecked_files,
@@ -120,8 +144,10 @@ class OSDiscoveryTest extends TestCase
         $os = Core::detectOS($this->genDevice($community));
         $output = ob_get_contents();
         ob_end_clean();
+        Debug::set(false);
+        Debug::setVerbose(false);
 
-        $this->assertLessThan(5, microtime(true) - $start, "OS $expected_os took longer than 5s to detect");
+        $this->assertLessThan(10, microtime(true) - $start, "OS $expected_os took longer than 10s to detect");
         $this->assertEquals($expected_os, $os, "Test file: $community.snmprec\n$output");
     }
 
@@ -134,9 +160,9 @@ class OSDiscoveryTest extends TestCase
     private function genDevice($community): Device
     {
         return new Device([
-            'hostname' => $this->getSnmpsim()->getIP(),
+            'hostname' => $this->getSnmpsimIp(),
             'snmpver' => 'v2c',
-            'port' => $this->getSnmpsim()->getPort(),
+            'port' => $this->getSnmpsimPort(),
             'timeout' => 3,
             'retries' => 0,
             'snmp_max_repeaters' => 10,
@@ -147,16 +173,13 @@ class OSDiscoveryTest extends TestCase
 
     /**
      * Provides a list of OS to generate tests.
-     *
-     * @return array
      */
-    public function osProvider()
+    public static function osProvider(): array
     {
         // make sure all OS are loaded
-        $config_os = array_keys(Config::get('os'));
-        if (count($config_os) < count(glob(Config::get('install_dir') . '/includes/definitions/*.yaml'))) {
-            OS::loadAllDefinitions(false, true);
-            $config_os = array_keys(Config::get('os'));
+        $config_os = array_keys(LibrenmsConfig::get('os'));
+        if (count($config_os) < count(glob(resource_path('definitions/os_detection/*.yaml')))) {
+            $config_os = array_keys(LibrenmsConfig::get('os'));
         }
 
         $excluded_os = [

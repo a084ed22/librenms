@@ -25,10 +25,11 @@
  */
 
 use App\Models\Device;
+use App\Models\Eventlog;
 
 if (! Auth::user()->hasGlobalAdmin()) {
     $response = [
-        'status'  => 'error',
+        'status' => 'error',
         'message' => 'Need to be admin',
     ];
     echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -38,11 +39,11 @@ if (! Auth::user()->hasGlobalAdmin()) {
 if (isset($_POST['device_id'])) {
     if (! is_numeric($_POST['device_id'])) {
         $status = 'error';
-        $message = 'Invalid device id ' . htmlspecialchars($_POST['device_id']);
+        $message = 'Invalid device id ' . htmlspecialchars((string) $_POST['device_id']);
     } else {
         $device = Device::find($_POST['device_id']);
 
-        log_event('Port state history reset by ' . Auth::user()->username, $device);
+        Eventlog::log('Port state history reset by ' . Auth::user()->username, $device);
 
         try {
             foreach ($device->ports()->get() as $port) {
@@ -54,7 +55,7 @@ if (isset($_POST['device_id'])) {
             }
             $status = 'ok';
             $message = 'Port state cleared successfully';
-        } catch (Exception $e) {
+        } catch (Exception) {
             $status = 'error';
             $message = 'Clearing port state failed: $e';
         }
@@ -65,7 +66,7 @@ if (isset($_POST['device_id'])) {
 }
 
 $output = [
-    'status'  => $status,
+    'status' => $status,
     'message' => $message,
 ];
 

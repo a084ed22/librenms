@@ -9,7 +9,9 @@
  * option) any later version.  Please see LICENSE.txt at the top level of
  * the source code distribution for details.
  */
+
 $pagetitle[] = 'Oxidized';
+$no_refresh = true;
 ?>
 <div class="col-xs-12">
     <h2>Oxidized</h2>
@@ -35,7 +37,7 @@ $pagetitle[] = 'Oxidized';
                                 <th data-column-id="last_update">Last Update</th>
                                 <th data-column-id="model">Model</th>
                                 <th data-column-id="group">Group</th>
-                                <th data-column-id="actions" data-formatter="actions"></th>
+                                <th data-column-id="actions" data-formatter="actions">Actions</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -50,7 +52,7 @@ $pagetitle[] = 'Oxidized';
                         <br/>
                         <div class="input-group">
                             <input type="text" class="form-control" id="input-parameter"
-                                   placeholder="service password-encryption etc.">
+                                   placeholder="service password-encryption etc. (Regex)">
                             <span class="input-group-btn">
                                 <button type="submit" name="btn-search" id="btn-search" class="btn btn-primary">Search</button>
                             </span>

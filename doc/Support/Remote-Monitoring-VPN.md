@@ -1,6 +1,3 @@
-source: Support/Remote-Monitoring-VPN.md
-path: blob/master/doc/
-
 # Remote monitoring using tinc VPN
 
 This article describes how to use tinc to connect several remote sites
@@ -15,8 +12,8 @@ management. If you are running something different, just take a look
 at tinc's homepage to find an appropriate version for your operating
 system: <https://www.tinc-vpn.org/download/>
 
-I am going to describe the setup for Debian-based systems, but there
-are virtually no differences for e.g. CentOS or similar.
+Here, we are going to describe the setup for Debian-based systems, but there
+are virtually no differences for CentOS or similar.
 
 - First make sure your firewall accepts connections on port 655 UDP
   and TCP.
@@ -32,7 +29,7 @@ AddressFamily = ipv4
 Device = /dev/net/tun
 ```
 
-- Next we need network up- and down scripts to define a few network
+- Next we need network up and down scripts to define a few network
   settings for inside our VPN: `vim /etc/tinc/myvpn/tinc-up`
 
 ```bash

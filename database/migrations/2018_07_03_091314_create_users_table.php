@@ -3,15 +3,19 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
-class CreateUsersTable extends Migration
+return new class extends Migration
 {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
+        if (LibreNMS\DB\Eloquent::getDriver() !== 'sqlite') {
+            DB::statement("SET TIME_ZONE='+00:00'"); // force UTC for default timestamp value
+        }
+
         Schema::create('users', function (Blueprint $table) {
             $table->increments('user_id');
             $table->string('auth_type', 32)->nullable();
@@ -35,8 +39,8 @@ class CreateUsersTable extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::drop('users');
     }
-}
+};

@@ -15,9 +15,9 @@
 * along with this program. If not, see <https://www.gnu.org/licenses/>. */
 
 // This one only will work with the CISCO-CONTEXT-MAPPING-MIB V2 of cisco
-use LibreNMS\Config;
+use App\Facades\LibrenmsConfig;
 
-if (Config::get('enable_vrf_lite_cisco')) {
+if (LibrenmsConfig::get('enable_vrf_lite_cisco')) {
     $ids = [];
 
     // For the moment only will be cisco and the version 3
@@ -61,7 +61,7 @@ if (Config::get('enable_vrf_lite_cisco')) {
 
         foreach ((array) $tableVrf as $context => $vrf) {
             if (\LibreNMS\Util\Debug::isEnabled()) {
-                echo "\n[DEBUG]\nRelation:t" . $context . 't' . $vrf['intance'] . 't' . $vrf['vrf'] . "\n[/DEBUG]\n";
+                echo "\n[DEBUG]\nRelation:t" . $context . 't' . (array_key_exists('intance_name', $vrf) ? $vrf['intance_name'] : '') . 't' . (array_key_exists('vrf_name', $vrf) ? $vrf['vrf_name'] : '') . "\n[/DEBUG]\n";
             }
 
             $tmpVrf = dbFetchRow('SELECT * FROM vrf_lite_cisco WHERE device_id = ? and context_name=?', [
@@ -99,13 +99,10 @@ if (Config::get('enable_vrf_lite_cisco')) {
     $tmpVrfC = dbFetchRows('SELECT * FROM vrf_lite_cisco WHERE device_id = ? ', [
         $device['device_id'], ]);
 
-    //Delete all vrf that chaged
+    //Delete all vrf that changed
     foreach ($tmpVrfC as $vrfC) {
-        unset($ids[$vrfC['vrf_lite_cisco_id']]);
-    }
-    if (! empty($ids)) {
-        foreach ($ids as $id) {
-            dbDelete('vrf_lite_cisco', 'vrf_lite_cisco_id = ? ', [$id]);
+        if (! in_array($vrfC['vrf_lite_cisco_id'], $ids)) {
+            dbDelete('vrf_lite_cisco', 'vrf_lite_cisco_id = ? ', [$vrfC['vrf_lite_cisco_id']]);
         }
     }
     unset($ids);

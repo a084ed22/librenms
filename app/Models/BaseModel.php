@@ -1,4 +1,5 @@
 <?php
+
 /**
  * BaseModel.php
  *
@@ -70,7 +71,7 @@ abstract class BaseModel extends Model
             $table = $this->getTable();
         }
 
-        return $query->whereIn("$table.device_id", \Permissions::devicesForUser($user));
+        return $query->whereIntegerInRaw("$table.device_id", \Permissions::devicesForUser($user));
     }
 
     /**
@@ -91,9 +92,39 @@ abstract class BaseModel extends Model
             $table = $this->getTable();
         }
 
-        return $query->where(function ($query) use ($table, $user) {
-            return $query->whereIn("$table.port_id", \Permissions::portsForUser($user))
-                ->orWhereIn("$table.device_id", \Permissions::devicesForUser($user));
-        });
+        return $query->where(fn ($query) => $query->whereIntegerInRaw("$table.port_id", \Permissions::portsForUser($user))
+            ->orWhereIntegerInRaw("$table.device_id", \Permissions::devicesForUser($user)));
+    }
+
+    /**
+     * Helper function to determine if user has access based on bill permissions
+     */
+    protected function hasBillAccess(Builder $query, User $user, ?string $table = null): Builder
+    {
+        if ($user->hasGlobalRead()) {
+            return $query;
+        }
+
+        if (is_null($table)) {
+            $table = $this->getTable();
+        }
+
+        return $query->whereIntegerInRaw("$table.bill_id", \Permissions::billsForUser($user));
+    }
+
+    public static function definedRelations(): array
+    {
+        $reflector = new \ReflectionClass(static::class);
+
+        return collect($reflector->getMethods())
+            ->filter(
+                fn ($method) => ! empty($method->getReturnType()) &&
+                    str_contains(
+                        $method->getReturnType(),
+                        'Illuminate\Database\Eloquent\Relations'
+                    )
+            )
+            ->pluck('name')
+            ->all();
     }
 }
