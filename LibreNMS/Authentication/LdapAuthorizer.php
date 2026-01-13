@@ -252,7 +252,14 @@ class LdapAuthorizer extends AuthorizerBase
      */
     protected function getFullDn($username): string
     {
-        return LibrenmsConfig::get('auth_ldap_prefix', '') . $username . LibrenmsConfig::get('auth_ldap_suffix', '');
+        $connection = $this->getLdapConnection();
+        $filter = '(' . Config::get('auth_ldap_prefix') . $this->userloginname . ')';
+        $base_dn = preg_replace('/,ou=[^,]+,/', '', Config::get('auth_ldap_suffix'));
+        $search = ldap_search($connection, $base_dn, $filter);
+        $firstuser = ldap_first_entry($connection, $search);
+
+        return ldap_get_dn($connection, $firstuser);
+
     }
 
     /**
